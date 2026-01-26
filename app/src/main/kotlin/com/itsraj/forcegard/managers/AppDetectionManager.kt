@@ -2,14 +2,18 @@
 package com.itsraj.forcegard.managers
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.util.Log
 import com.itsraj.forcegard.models.AppSessionState
+import com.itsraj.forcegard.utils.AppCategory
 import com.itsraj.forcegard.utils.AppPackages
+import com.itsraj.forcegard.utils.AppScanner
 
 class AppDetectionManager(
     private val context: Context
 ) {
     private val appPackages = AppPackages(context)
+    private val appScanner = AppScanner(context)
     private var currentForegroundApp: String? = null
     
     private val listeners = mutableListOf<AppStateListener>()
@@ -42,6 +46,14 @@ class AppDetectionManager(
     fun handleAppDetection(packageName: String): AppSessionState {
         val isMonitored = shouldMonitor(packageName)
         
+        // Determine category
+        val category = try {
+            val appInfo = context.packageManager.getApplicationInfo(packageName, 0)
+            appScanner.categorizeApp(appInfo, packageName)
+        } catch (e: Exception) {
+            AppCategory.OTHER
+        }
+
         // Notify foreground change
         if (currentForegroundApp != packageName) {
             notifyForegroundChanged(currentForegroundApp, packageName)
@@ -56,7 +68,8 @@ class AppDetectionManager(
             packageName = packageName,
             isMonitored = isMonitored,
             hasActiveTimer = false, // Will be updated by TimerManager
-            isInCooldown = false    // Will be updated by CooldownManager
+            isInCooldown = false,    // Will be updated by CooldownManager
+            category = category
         )
     }
     
@@ -81,13 +94,13 @@ class AppDetectionManager(
     }
     
     fun getCurrentForegroundApp(): String? = currentForegroundApp
-}
 
-    // managers/AppDetectionManager.kt (ADD THIS)
-
-interface AppStateListener {
-    fun onAppOpened(packageName: String)
-    fun onAppClosed(packageName: String)
-    fun onForegroundChanged(from: String?, to: String)
-    fun onAppExitAttempt(packageName: String) // NEW!
+    fun getAppCategory(packageName: String): AppCategory {
+        return try {
+            val appInfo = context.packageManager.getApplicationInfo(packageName, 0)
+            appScanner.categorizeApp(appInfo, packageName)
+        } catch (e: Exception) {
+            AppCategory.OTHER
+        }
+    }
 }
