@@ -23,6 +23,7 @@ import com.itsraj.forcegard.limits.DailyLimitManager
 import com.itsraj.forcegard.managers.*
 import com.itsraj.forcegard.models.CooldownReason
 import com.itsraj.forcegard.models.TimerData
+import com.itsraj.forcegard.utils.AppCategory
 
 class ForcegardAccessibilityService : AccessibilityService(),
     AppDetectionManager.AppStateListener,
@@ -44,6 +45,12 @@ class ForcegardAccessibilityService : AccessibilityService(),
 
     companion object {
         private const val TAG = "ForcegardService"
+
+        // Default guarded categories
+        private val GUARDED_CATEGORIES = setOf(
+            AppCategory.SOCIAL,
+            AppCategory.GAME
+        )
     }
 
     // ========== SERVICE LIFECYCLE ==========
@@ -133,18 +140,23 @@ class ForcegardAccessibilityService : AccessibilityService(),
         Log.d(TAG, "🔄 Foreground: $from → $to")
         
         // Detect app going to background with active timer
+        // Show exit confirmation if switching to Launcher or another user app
+        // Do NOT show if switching to a SYSTEM app (allow quick settings/phone calls)
         if (from != null &&
             appDetectionManager.shouldMonitor(from) &&
             timerManager.hasActiveTimer(from) &&
             to != from &&
             to != null) {
             
-            // Show exit confirmation
-            val remainingMs = timerManager.getRemainingTime(from) ?: return
-            val remainingSeconds = (remainingMs / 1000).toInt()
-            val minutes = remainingSeconds / 60
-            val seconds = remainingSeconds % 60
-            overlayManager.showExitConfirmationPopup(from, minutes, seconds)
+            val toCategory = appDetectionManager.getAppCategory(to)
+            if (toCategory != AppCategory.SYSTEM) {
+                // Show exit confirmation
+                val remainingMs = timerManager.getRemainingTime(from) ?: return
+                val remainingSeconds = (remainingMs / 1000).toInt()
+                val minutes = remainingSeconds / 60
+                val seconds = remainingSeconds % 60
+                overlayManager.showExitConfirmationPopup(from, minutes, seconds)
+            }
         }
     }
 
@@ -155,6 +167,11 @@ class ForcegardAccessibilityService : AccessibilityService(),
     private fun handleAppChange(packageName: String, source: String) {
         // Skip if overlay is transitioning
         if (overlayManager.isTransitioning()) return
+
+        // Hide timer pill if the current app is not the one with the timer
+        if (!timerManager.hasActiveTimer(packageName)) {
+            overlayManager.hideAllTimerPills()
+        }
         
         // ===== DAILY LIMIT CHECK (PRIORITY 1) =====
         if (isDailyLimitExceeded() && !AllowedAppsManager.isAllowedWhenLimited(packageName)) {
@@ -190,11 +207,15 @@ class ForcegardAccessibilityService : AccessibilityService(),
             return
         }
         
-        // Show confirmation if no overlay visible
-        if (!overlayManager.isOverlayVisible()) {
-            Log.d(TAG, "✅ TRIGGER [$source]: $packageName")
+        // Show confirmation ONLY if category is guarded and no overlay visible
+        if (!overlayManager.isOverlayVisible() && isCategoryGuarded(appState.category)) {
+            Log.d(TAG, "✅ TRIGGER [$source]: $packageName (Category: ${appState.category})")
             overlayManager.showConfirmationPopup(packageName)
         }
+    }
+
+    private fun isCategoryGuarded(category: AppCategory): Boolean {
+        return GUARDED_CATEGORIES.contains(category)
     }
 
     // ========== DAILY LIMIT HELPERS ==========
@@ -278,8 +299,7 @@ class ForcegardAccessibilityService : AccessibilityService(),
 
     override fun onAppClosed(packageName: String) {
         Log.d(TAG, "📱 App closed: $packageName")
-        // Cancel timer when app goes to background
-        timerManager.cancelTimer(packageName)
+        // Do NOT cancel timer when app goes to background, just hide the pill
         overlayManager.removeTimerPill(packageName)
     }
 
@@ -359,14 +379,7 @@ class ForcegardAccessibilityService : AccessibilityService(),
 
     override fun onTimeSelected(packageName: String, minutes: Int) {
         Log.d(TAG, "⏱️ User selected: $minutes minutes")
-        handler.postDelayed({
-            overlayManager.showImpulseCooldown(packageName, minutes, 25)
-        }, 300)
-    }
-
-    override fun onImpulseCooldownFinished(packageName: String, minutes: Int) {
-        Log.d(TAG, "✅ Impulse cooldown finished, starting timer")
-        // Start the actual timer
+        // Start the actual timer immediately
         timerManager.startTimer(packageName, minutes)
         handler.postDelayed({
             overlayManager.clearTransitioning()

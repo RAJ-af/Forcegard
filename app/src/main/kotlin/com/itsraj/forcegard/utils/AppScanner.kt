@@ -33,12 +33,14 @@ data class ScannedApp(
 )
 
 enum class AppCategory {
-    SYSTEM_APP,           // Pure system apps (cannot uninstall)
-    UPDATED_SYSTEM_APP,   // System apps with updates (Chrome, Gmail)
-    USER_APP,             // User installed apps
-    LAUNCHER_APP,         // Home launchers
-    SYSTEM_SERVICE,       // Background services
-    DISABLED_APP          // Disabled apps
+    SOCIAL,
+    GAME,
+    VIDEO_MUSIC,
+    PRODUCTIVITY,
+    OTHER,
+    SYSTEM,
+    LAUNCHER,
+    DISABLED
 }
 
 class AppScanner(private val context: Context) {
@@ -80,9 +82,9 @@ class AppScanner(private val context: Context) {
                     scannedApps.add(scannedApp)
                     
                     when (scannedApp.category) {
-                        AppCategory.USER_APP -> userCount++
-                        AppCategory.SYSTEM_APP, AppCategory.SYSTEM_SERVICE -> systemCount++
-                        else -> {}
+                        AppCategory.SYSTEM -> systemCount++
+                        AppCategory.LAUNCHER, AppCategory.DISABLED -> {}
+                        else -> userCount++
                     }
                     
                 } catch (e: Exception) {
@@ -190,37 +192,40 @@ class AppScanner(private val context: Context) {
     /**
      * Smart categorization based on App Manager logic
      */
-    private fun categorizeApp(appInfo: ApplicationInfo, packageName: String): AppCategory {
+    fun categorizeApp(appInfo: ApplicationInfo, packageName: String): AppCategory {
         val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
         val isUpdatedSystem = (appInfo.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
         val isEnabled = appInfo.enabled
         
         // Check if launcher
         if (isLauncherApp(packageName)) {
-            return AppCategory.LAUNCHER_APP
+            return AppCategory.LAUNCHER
         }
         
         // Check if disabled
         if (!isEnabled) {
-            return AppCategory.DISABLED_APP
+            return AppCategory.DISABLED
+        }
+
+        // Handle core system apps first
+        if (isSystem && !isUpdatedSystem) {
+            return AppCategory.SYSTEM
         }
         
-        // Check system type
-        if (isUpdatedSystem) {
-            return AppCategory.UPDATED_SYSTEM_APP
-        }
-        
-        if (isSystem) {
-            // Check if it's a service (no launcher icon)
-            return if (hasLauncherIcon(packageName)) {
-                AppCategory.SYSTEM_APP
-            } else {
-                AppCategory.SYSTEM_SERVICE
+        // Use Android's ApplicationInfo.category if available (API 26+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            return when (appInfo.category) {
+                ApplicationInfo.CATEGORY_SOCIAL -> AppCategory.SOCIAL
+                ApplicationInfo.CATEGORY_GAME -> AppCategory.GAME
+                ApplicationInfo.CATEGORY_VIDEO, ApplicationInfo.CATEGORY_AUDIO -> AppCategory.VIDEO_MUSIC
+                ApplicationInfo.CATEGORY_PRODUCTIVITY, ApplicationInfo.CATEGORY_IMAGE, ApplicationInfo.CATEGORY_NEWS -> AppCategory.PRODUCTIVITY
+                ApplicationInfo.CATEGORY_MAPS -> AppCategory.PRODUCTIVITY // Maps often Productivity
+                else -> AppCategory.OTHER
             }
         }
         
-        // User app
-        return AppCategory.USER_APP
+        // Fallback for older APIs
+        return AppCategory.OTHER
     }
 
     /**
@@ -252,7 +257,9 @@ class AppScanner(private val context: Context) {
      */
     suspend fun getUserApps(): List<ScannedApp> {
         return scanAllApps().filter {
-            it.category == AppCategory.USER_APP
+            it.category != AppCategory.SYSTEM &&
+            it.category != AppCategory.LAUNCHER &&
+            it.category != AppCategory.DISABLED
         }
     }
 
@@ -261,8 +268,7 @@ class AppScanner(private val context: Context) {
      */
     suspend fun getSystemApps(): List<ScannedApp> {
         return scanAllApps().filter {
-            it.category == AppCategory.SYSTEM_APP ||
-            it.category == AppCategory.SYSTEM_SERVICE
+            it.category == AppCategory.SYSTEM
         }
     }
 
