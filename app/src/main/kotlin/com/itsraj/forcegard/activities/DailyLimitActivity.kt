@@ -64,8 +64,8 @@ class DailyLimitActivity : AppCompatActivity() {
         val config = dailyLimitManager.getConfig()
         
         if (config != null) {
-            val hours = config.dailyLimitMinutes / 60
-            val minutes = config.dailyLimitMinutes % 60
+            val hours = config.limitMinutes / 60
+            val minutes = config.limitMinutes % 60
             
             hourPicker.value = hours
             val minuteIndex = minutes / 5
@@ -115,7 +115,7 @@ class DailyLimitActivity : AppCompatActivity() {
         // FIXED: Correct parameter names matching DailyLimitConfig
         val config = DailyLimitConfig(
             enabled = true,
-            dailyLimitMinutes = totalMinutes,
+            limitMinutes = totalMinutes,
             planDays = planDuration,
             resetHour = resetHour,
             startDayEpoch = System.currentTimeMillis() / (24 * 60 * 60 * 1000)

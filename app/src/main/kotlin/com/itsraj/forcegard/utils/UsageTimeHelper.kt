@@ -5,85 +5,11 @@ import android.app.usage.UsageStatsManager
 import android.content.Context
 import java.util.Calendar
 
-object AdvancedUsageHelper {
+object UsageTimeHelper {
 
-    data class UsageResult(
-        val totalTimeMillis: Long,
-        val lastUsedTime: Long,
-        val isCurrentlyForeground: Boolean
-    )
-
-    fun getTodayUsage(
-        context: Context,
-        packageName: String
-    ): UsageResult {
-
-        val usm =
-            context.getSystemService(Context.USAGE_STATS_SERVICE)
-                    as UsageStatsManager
-
-        val startOfDay = startOfToday()
-        val now = System.currentTimeMillis()
-
-        val events = usm.queryEvents(startOfDay, now)
-        val event = UsageEvents.Event()
-
-        var lastForegroundTime = 0L
-        var totalTime = 0L
-        var lastUsed = 0L
-        var isForeground = false
-
-        while (events.hasNextEvent()) {
-            events.getNextEvent(event)
-
-            if (event.packageName != packageName) continue
-
-            when (event.eventType) {
-
-                UsageEvents.Event.MOVE_TO_FOREGROUND -> {
-                    lastForegroundTime = event.timeStamp
-                    lastUsed = event.timeStamp
-                    isForeground = true
-                }
-
-                UsageEvents.Event.MOVE_TO_BACKGROUND -> {
-                    if (lastForegroundTime > 0) {
-                        val duration =
-                            event.timeStamp - lastForegroundTime
-
-                        if (duration > 0) {
-                            totalTime += duration
-                        }
-                    }
-                    lastForegroundTime = 0L
-                    isForeground = false
-                }
-            }
-        }
-
-        // App still running in foreground
-        if (isForeground && lastForegroundTime > 0) {
-            val duration = now - lastForegroundTime
-            if (duration > 0) totalTime += duration
-        }
-
-        return UsageResult(
-            totalTimeMillis = totalTime,
-            lastUsedTime = lastUsed,
-            isCurrentlyForeground = isForeground
-        )
-    }
-
-    fun getTotalScreenTimeToday(context: Context): Long {
-
-        val usm =
-            context.getSystemService(Context.USAGE_STATS_SERVICE)
-                    as UsageStatsManager
-
-        val startOfDay = startOfToday()
-        val now = System.currentTimeMillis()
-
-        val events = usm.queryEvents(startOfDay, now)
+    fun getTotalScreenTime(context: Context, startTime: Long, endTime: Long): Long {
+        val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val events = usm.queryEvents(startTime, endTime) ?: return 0L
         val event = UsageEvents.Event()
 
         val activeApps = mutableMapOf<String, Long>()
@@ -93,39 +19,126 @@ object AdvancedUsageHelper {
             events.getNextEvent(event)
 
             when (event.eventType) {
-
                 UsageEvents.Event.MOVE_TO_FOREGROUND -> {
                     activeApps[event.packageName] = event.timeStamp
                 }
-
                 UsageEvents.Event.MOVE_TO_BACKGROUND -> {
-                    val start =
-                        activeApps.remove(event.packageName)
-
+                    val start = activeApps.remove(event.packageName)
                     if (start != null) {
-                        val duration =
-                            event.timeStamp - start
+                        val duration = event.timeStamp - start
                         if (duration > 0) totalTime += duration
                     }
                 }
             }
         }
 
-        val nowTime = System.currentTimeMillis()
         activeApps.values.forEach { start ->
-            val duration = nowTime - start
+            val duration = endTime - start
             if (duration > 0) totalTime += duration
         }
 
         return totalTime
     }
 
-    private fun startOfToday(): Long {
+    fun getTodayTotalUsageMillis(context: Context, resetHour: Int): Long {
+        val start = getStartOfTodayCustom(resetHour)
+        val now = System.currentTimeMillis()
+        return getTotalScreenTime(context, start, now)
+    }
+
+    private fun getStartOfTodayCustom(resetHour: Int): Long {
         val cal = Calendar.getInstance()
+        if (cal.get(Calendar.HOUR_OF_DAY) < resetHour) {
+            cal.add(Calendar.DAY_OF_YEAR, -1)
+        }
+        cal.set(Calendar.HOUR_OF_DAY, resetHour)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
+    }
+
+    fun getStartOfToday(): Long = getStartOfTodayCustom(0)
+
+    fun getStartOfWeek(): Long {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        if (cal.timeInMillis > System.currentTimeMillis()) {
+            cal.add(Calendar.DAY_OF_YEAR, -7)
+        }
+        return cal.timeInMillis
+    }
+
+    fun getStartOfMonth(): Long {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.DAY_OF_MONTH, 1)
         cal.set(Calendar.HOUR_OF_DAY, 0)
         cal.set(Calendar.MINUTE, 0)
         cal.set(Calendar.SECOND, 0)
         cal.set(Calendar.MILLISECOND, 0)
         return cal.timeInMillis
+    }
+
+    data class AppUsageInfo(
+        val packageName: String,
+        val appName: String,
+        val totalTimeMillis: Long
+    )
+
+    fun getMostUsedAppsToday(context: Context, resetHour: Int, limit: Int): List<AppUsageInfo> {
+        val startTime = getStartOfTodayCustom(resetHour)
+        val endTime = System.currentTimeMillis()
+
+        val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val events = usm.queryEvents(startTime, endTime) ?: return emptyList()
+        val event = UsageEvents.Event()
+
+        val appUsageMap = mutableMapOf<String, Long>()
+        val activeApps = mutableMapOf<String, Long>()
+
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+            val pkg = event.packageName
+
+            when (event.eventType) {
+                UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                    activeApps[pkg] = event.timeStamp
+                }
+                UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                    val start = activeApps.remove(pkg)
+                    if (start != null) {
+                        val duration = event.timeStamp - start
+                        if (duration > 0) {
+                            appUsageMap[pkg] = (appUsageMap[pkg] ?: 0L) + duration
+                        }
+                    }
+                }
+            }
+        }
+
+        activeApps.forEach { (pkg, start) ->
+            val duration = endTime - start
+            if (duration > 0) {
+                appUsageMap[pkg] = (appUsageMap[pkg] ?: 0L) + duration
+            }
+        }
+
+        val pm = context.packageManager
+        return appUsageMap.entries
+            .sortedByDescending { it.value }
+            .take(limit)
+            .map { entry ->
+                val appName = try {
+                    val appInfo = pm.getApplicationInfo(entry.key, 0)
+                    pm.getApplicationLabel(appInfo).toString()
+                } catch (e: Exception) {
+                    entry.key
+                }
+                AppUsageInfo(entry.key, appName, entry.value)
+            }
     }
 }

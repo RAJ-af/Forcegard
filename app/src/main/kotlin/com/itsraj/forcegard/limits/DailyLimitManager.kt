@@ -1,88 +1,66 @@
 package com.itsraj.forcegard.limits
 
 import android.content.Context
-import com.forcegard.usage.AdvancedUsageHelper
-import java.time.LocalDate
+import android.content.SharedPreferences
+import com.itsraj.forcegard.utils.UsageTimeHelper
 
-object AdvancedDailyLimitManager {
+class DailyLimitManager(private val context: Context) {
 
-    private const val PREF = "adv_daily_limit"
-    private const val KEY_DATE = "current_date"
-    private const val KEY_PREFIX_USAGE = "usage_"
+    private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    data class LimitResult(
-        val usedMillis: Long,
-        val limitMillis: Long,
-        val remainingMillis: Long,
-        val isExceeded: Boolean
-    )
+    companion object {
+        private const val PREFS_NAME = "DailyLimitPrefs"
+        private const val KEY_ENABLED = "enabled"
+        private const val KEY_LIMIT_MINUTES = "limit_minutes"
+        private const val KEY_PLAN_DAYS = "plan_days"
+        private const val KEY_RESET_HOUR = "reset_hour"
+        private const val KEY_START_EPOCH = "start_epoch"
+    }
 
-    fun checkLimit(
-        context: Context,
-        packageName: String,
-        limitMillis: Long
-    ): LimitResult {
+    fun saveConfig(config: DailyLimitConfig) {
+        prefs.edit()
+            .putBoolean(KEY_ENABLED, config.enabled)
+            .putInt(KEY_LIMIT_MINUTES, config.limitMinutes)
+            .putInt(KEY_PLAN_DAYS, config.planDays)
+            .putInt(KEY_RESET_HOUR, config.resetHour)
+            .putLong(KEY_START_EPOCH, config.startDayEpoch)
+            .apply()
+    }
 
-        resetIfNewDay(context)
+    fun getConfig(): DailyLimitConfig? {
+        if (!prefs.contains(KEY_LIMIT_MINUTES)) return null
 
-        val used =
-            AdvancedUsageHelper
-                .getTodayUsage(context, packageName)
-                .totalTimeMillis
-
-        saveUsage(context, packageName, used)
-
-        val exceeded = used >= limitMillis
-        val remaining =
-            (limitMillis - used).coerceAtLeast(0L)
-
-        return LimitResult(
-            usedMillis = used,
-            limitMillis = limitMillis,
-            remainingMillis = remaining,
-            isExceeded = exceeded
+        return DailyLimitConfig(
+            enabled = prefs.getBoolean(KEY_ENABLED, true),
+            limitMinutes = prefs.getInt(KEY_LIMIT_MINUTES, 0),
+            planDays = prefs.getInt(KEY_PLAN_DAYS, 1),
+            resetHour = prefs.getInt(KEY_RESET_HOUR, 0),
+            startDayEpoch = prefs.getLong(KEY_START_EPOCH, 0L)
         )
     }
 
-    private fun saveUsage(
-        context: Context,
-        packageName: String,
-        usedMillis: Long
-    ) {
-        context.getSharedPreferences(PREF, Context.MODE_PRIVATE)
-            .edit()
-            .putLong(KEY_PREFIX_USAGE + packageName, usedMillis)
-            .apply()
+    fun isPlanActive(): Boolean {
+        return prefs.getBoolean(KEY_ENABLED, false)
     }
 
-    fun getSavedUsage(
-        context: Context,
-        packageName: String
-    ): Long {
-        return context
-            .getSharedPreferences(PREF, Context.MODE_PRIVATE)
-            .getLong(KEY_PREFIX_USAGE + packageName, 0L)
-    }
+    fun getTodayWindow(): Pair<Long, Long> {
+        val config = getConfig() ?: return Pair(0L, 0L)
+        val now = System.currentTimeMillis()
 
-    private fun resetIfNewDay(context: Context) {
-        val prefs =
-            context.getSharedPreferences(PREF, Context.MODE_PRIVATE)
-
-        val today = LocalDate.now().toString()
-        val savedDate = prefs.getString(KEY_DATE, null)
-
-        if (savedDate != today) {
-            prefs.edit()
-                .clear()
-                .putString(KEY_DATE, today)
-                .apply()
+        var startTime = when (config.planDays) {
+            1 -> UsageTimeHelper.getStartOfToday()
+            7 -> UsageTimeHelper.getStartOfWeek()
+            30 -> UsageTimeHelper.getStartOfMonth()
+            else -> UsageTimeHelper.getStartOfToday()
         }
-    }
 
-    fun clearAll(context: Context) {
-        context.getSharedPreferences(PREF, Context.MODE_PRIVATE)
-            .edit()
-            .clear()
-            .apply()
+        if (config.planDays == 1 && config.resetHour > 0) {
+            startTime += config.resetHour.toLong() * 60 * 60 * 1000L
+            if (startTime > now) {
+                startTime -= 24 * 60 * 60 * 1000L
+            }
+        }
+
+        return Pair(startTime, now)
     }
 }

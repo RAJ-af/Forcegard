@@ -20,6 +20,7 @@ import android.widget.TextView
 import com.itsraj.forcegard.R
 import com.itsraj.forcegard.limits.AllowedAppsManager
 import com.itsraj.forcegard.limits.DailyLimitManager
+import com.itsraj.forcegard.utils.UsageTimeHelper
 import com.itsraj.forcegard.managers.*
 import com.itsraj.forcegard.models.CooldownReason
 import com.itsraj.forcegard.models.TimerData
@@ -82,7 +83,7 @@ class ForcegardAccessibilityService : AccessibilityService(),
         // Initialize all managers
         appDetectionManager = AppDetectionManager(this)
         timerManager = TimerManager()
-        cooldownManager = CooldownManager()
+        cooldownManager = CooldownManager(this)
         overlayManager = OverlayManager(this)
         foregroundTracker = ForegroundAppTracker(this)
         dailyLimitManager = DailyLimitManager(this)
@@ -145,8 +146,7 @@ class ForcegardAccessibilityService : AccessibilityService(),
         if (from != null &&
             appDetectionManager.shouldMonitor(from) &&
             timerManager.hasActiveTimer(from) &&
-            to != from &&
-            to != null) {
+            to != from) {
             
             val toCategory = appDetectionManager.getAppCategory(to)
             if (toCategory != AppCategory.SYSTEM) {
@@ -174,13 +174,17 @@ class ForcegardAccessibilityService : AccessibilityService(),
         }
         
         // ===== DAILY LIMIT CHECK (PRIORITY 1) =====
-        if (isDailyLimitExceeded() && !AllowedAppsManager.isAllowedWhenLimited(packageName)) {
-            Log.d(TAG, "⏰ Daily limit exceeded, blocking: $packageName")
-            showDailyLimitOverlay()
-            handler.postDelayed({
-                performGlobalAction(GLOBAL_ACTION_HOME)
-            }, 1000)
-            return
+        if (isDailyLimitExceeded()) {
+            if (!AllowedAppsManager.isAllowedWhenLimited(packageName)) {
+                Log.d(TAG, "⏰ Daily limit exceeded, blocking: $packageName")
+                showDailyLimitOverlay()
+                handler.postDelayed({
+                    performGlobalAction(GLOBAL_ACTION_HOME)
+                }, 1000)
+                return
+            }
+        } else {
+            removeDailyLimitOverlay()
         }
         // ==========================================
         
@@ -222,29 +226,17 @@ class ForcegardAccessibilityService : AccessibilityService(),
     
     private fun isDailyLimitExceeded(): Boolean {
         val config = dailyLimitManager.getConfig() ?: return false
-        if (!dailyLimitManager.isPlanActive()) return false
+        if (!config.enabled) return false
         
         val (startWindow, endWindow) = dailyLimitManager.getTodayWindow()
         val usedMillis = getTotalUsageInWindow(startWindow, endWindow)
-        val limitMillis = config.dailyLimitMinutes * 60000L
+        val limitMillis = config.limitMinutes * 60000L
         
         return usedMillis >= limitMillis
     }
 
     private fun getTotalUsageInWindow(startMillis: Long, endMillis: Long): Long {
-        try {
-            val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-            val usageStats = usageStatsManager.queryUsageStats(
-                UsageStatsManager.INTERVAL_DAILY,
-                startMillis,
-                endMillis
-            )
-            
-            return usageStats?.sumOf { it.totalTimeInForeground } ?: 0L
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting usage stats: ${e.message}")
-            return 0L
-        }
+        return UsageTimeHelper.getTotalScreenTime(this, startMillis, endMillis)
     }
 
     private fun showDailyLimitOverlay() {
