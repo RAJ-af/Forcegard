@@ -20,9 +20,11 @@ import android.widget.TextView
 import com.itsraj.forcegard.R
 import com.itsraj.forcegard.limits.AllowedAppsManager
 import com.itsraj.forcegard.limits.DailyLimitManager
+import com.itsraj.forcegard.utils.UsageTimeHelper
 import com.itsraj.forcegard.managers.*
 import com.itsraj.forcegard.models.CooldownReason
 import com.itsraj.forcegard.models.TimerData
+import com.itsraj.forcegard.utils.AppCategory
 
 class ForcegardAccessibilityService : AccessibilityService(),
     AppDetectionManager.AppStateListener,
@@ -44,6 +46,12 @@ class ForcegardAccessibilityService : AccessibilityService(),
 
     companion object {
         private const val TAG = "ForcegardService"
+
+        // Default guarded categories
+        private val GUARDED_CATEGORIES = setOf(
+            AppCategory.SOCIAL,
+            AppCategory.GAME
+        )
     }
 
     // ========== SERVICE LIFECYCLE ==========
@@ -75,7 +83,7 @@ class ForcegardAccessibilityService : AccessibilityService(),
         // Initialize all managers
         appDetectionManager = AppDetectionManager(this)
         timerManager = TimerManager()
-        cooldownManager = CooldownManager()
+        cooldownManager = CooldownManager(this)
         overlayManager = OverlayManager(this)
         foregroundTracker = ForegroundAppTracker(this)
         dailyLimitManager = DailyLimitManager(this)
@@ -133,18 +141,22 @@ class ForcegardAccessibilityService : AccessibilityService(),
         Log.d(TAG, "🔄 Foreground: $from → $to")
         
         // Detect app going to background with active timer
+        // Show exit confirmation if switching to Launcher or another user app
+        // Do NOT show if switching to a SYSTEM app (allow quick settings/phone calls)
         if (from != null &&
             appDetectionManager.shouldMonitor(from) &&
             timerManager.hasActiveTimer(from) &&
-            to != from &&
-            to != null) {
+            to != from) {
             
-            // Show exit confirmation
-            val remainingMs = timerManager.getRemainingTime(from) ?: return
-            val remainingSeconds = (remainingMs / 1000).toInt()
-            val minutes = remainingSeconds / 60
-            val seconds = remainingSeconds % 60
-            overlayManager.showExitConfirmationPopup(from, minutes, seconds)
+            val toCategory = appDetectionManager.getAppCategory(to)
+            if (toCategory != AppCategory.SYSTEM) {
+                // Show exit confirmation
+                val remainingMs = timerManager.getRemainingTime(from) ?: return
+                val remainingSeconds = (remainingMs / 1000).toInt()
+                val minutes = remainingSeconds / 60
+                val seconds = remainingSeconds % 60
+                overlayManager.showExitConfirmationPopup(from, minutes, seconds)
+            }
         }
     }
 
@@ -155,15 +167,24 @@ class ForcegardAccessibilityService : AccessibilityService(),
     private fun handleAppChange(packageName: String, source: String) {
         // Skip if overlay is transitioning
         if (overlayManager.isTransitioning()) return
+
+        // Hide timer pill if the current app is not the one with the timer
+        if (!timerManager.hasActiveTimer(packageName)) {
+            overlayManager.hideAllTimerPills()
+        }
         
         // ===== DAILY LIMIT CHECK (PRIORITY 1) =====
-        if (isDailyLimitExceeded() && !AllowedAppsManager.isAllowedWhenLimited(packageName)) {
-            Log.d(TAG, "⏰ Daily limit exceeded, blocking: $packageName")
-            showDailyLimitOverlay()
-            handler.postDelayed({
-                performGlobalAction(GLOBAL_ACTION_HOME)
-            }, 1000)
-            return
+        if (isDailyLimitExceeded()) {
+            if (!AllowedAppsManager.isAllowedWhenLimited(packageName)) {
+                Log.d(TAG, "⏰ Daily limit exceeded, blocking: $packageName")
+                showDailyLimitOverlay()
+                handler.postDelayed({
+                    performGlobalAction(GLOBAL_ACTION_HOME)
+                }, 1000)
+                return
+            }
+        } else {
+            removeDailyLimitOverlay()
         }
         // ==========================================
         
@@ -190,40 +211,32 @@ class ForcegardAccessibilityService : AccessibilityService(),
             return
         }
         
-        // Show confirmation if no overlay visible
-        if (!overlayManager.isOverlayVisible()) {
-            Log.d(TAG, "✅ TRIGGER [$source]: $packageName")
+        // Show confirmation ONLY if category is guarded and no overlay visible
+        if (!overlayManager.isOverlayVisible() && isCategoryGuarded(appState.category)) {
+            Log.d(TAG, "✅ TRIGGER [$source]: $packageName (Category: ${appState.category})")
             overlayManager.showConfirmationPopup(packageName)
         }
+    }
+
+    private fun isCategoryGuarded(category: AppCategory): Boolean {
+        return GUARDED_CATEGORIES.contains(category)
     }
 
     // ========== DAILY LIMIT HELPERS ==========
     
     private fun isDailyLimitExceeded(): Boolean {
         val config = dailyLimitManager.getConfig() ?: return false
-        if (!dailyLimitManager.isPlanActive()) return false
+        if (!config.enabled) return false
         
         val (startWindow, endWindow) = dailyLimitManager.getTodayWindow()
         val usedMillis = getTotalUsageInWindow(startWindow, endWindow)
-        val limitMillis = config.dailyLimitMinutes * 60000L
+        val limitMillis = config.limitMinutes * 60000L
         
         return usedMillis >= limitMillis
     }
 
     private fun getTotalUsageInWindow(startMillis: Long, endMillis: Long): Long {
-        try {
-            val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-            val usageStats = usageStatsManager.queryUsageStats(
-                UsageStatsManager.INTERVAL_DAILY,
-                startMillis,
-                endMillis
-            )
-            
-            return usageStats?.sumOf { it.totalTimeInForeground } ?: 0L
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting usage stats: ${e.message}")
-            return 0L
-        }
+        return UsageTimeHelper.getTotalScreenTime(this, startMillis, endMillis)
     }
 
     private fun showDailyLimitOverlay() {
@@ -278,8 +291,7 @@ class ForcegardAccessibilityService : AccessibilityService(),
 
     override fun onAppClosed(packageName: String) {
         Log.d(TAG, "📱 App closed: $packageName")
-        // Cancel timer when app goes to background
-        timerManager.cancelTimer(packageName)
+        // Do NOT cancel timer when app goes to background, just hide the pill
         overlayManager.removeTimerPill(packageName)
     }
 
@@ -359,14 +371,7 @@ class ForcegardAccessibilityService : AccessibilityService(),
 
     override fun onTimeSelected(packageName: String, minutes: Int) {
         Log.d(TAG, "⏱️ User selected: $minutes minutes")
-        handler.postDelayed({
-            overlayManager.showImpulseCooldown(packageName, minutes, 25)
-        }, 300)
-    }
-
-    override fun onImpulseCooldownFinished(packageName: String, minutes: Int) {
-        Log.d(TAG, "✅ Impulse cooldown finished, starting timer")
-        // Start the actual timer
+        // Start the actual timer immediately
         timerManager.startTimer(packageName, minutes)
         handler.postDelayed({
             overlayManager.clearTransitioning()

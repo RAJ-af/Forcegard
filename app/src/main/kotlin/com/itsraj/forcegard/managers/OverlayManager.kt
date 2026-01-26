@@ -37,7 +37,6 @@ class OverlayManager(private val context: Context) {
         fun onConfirmationYes(packageName: String)
         fun onConfirmationNo(packageName: String)
         fun onTimeSelected(packageName: String, minutes: Int)
-        fun onImpulseCooldownFinished(packageName: String, minutes: Int)
         fun onExitConfirmed(packageName: String)
         fun onExitCancelled(packageName: String)
         fun onCloseAppRequested()
@@ -46,7 +45,6 @@ class OverlayManager(private val context: Context) {
     enum class OverlayType {
         CONFIRMATION,
         TIME_SELECTION,
-        IMPULSE_COOLDOWN,
         TIME_FINISHED,
         COOLDOWN_LOCK,
         TIMER_PILL
@@ -166,40 +164,6 @@ class OverlayManager(private val context: Context) {
         }, 500)
     }
     
-    // ========== IMPULSE COOLDOWN ==========
-    
-    fun showImpulseCooldown(packageName: String, selectedMinutes: Int, cooldownSeconds: Int = 25) {
-        removeCurrentOverlay()
-        
-        try {
-            val view = LayoutInflater.from(context)
-                .inflate(R.layout.overlay_cooldown, null)
-            
-            val params = createFullScreenParams()
-            
-            val tvNumber = view.findViewById<TextView>(R.id.tv_cooldown_number)
-            
-            currentTimer = object : CountDownTimer(cooldownSeconds * 1000L, 1000) {
-                override fun onTick(millisUntilFinished: Long) {
-                    val secondsLeft = (millisUntilFinished / 1000).toInt()
-                    tvNumber.text = secondsLeft.toString()
-                }
-                
-                override fun onFinish() {
-                    removeCurrentOverlay()
-                    notifyImpulseCooldownFinished(packageName, selectedMinutes)
-                }
-            }.start()
-            
-            windowManager.addView(view, params)
-            currentOverlay = view
-            
-            Log.d(TAG, "⏳ Impulse cooldown shown: ${cooldownSeconds}s")
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Failed to show impulse cooldown: ${e.message}", e)
-        }
-    }
-    
     // ========== TIMER PILL ==========
     
     fun showOrUpdateTimerPill(packageName: String, minutes: Int, seconds: Int) {
@@ -250,6 +214,16 @@ class OverlayManager(private val context: Context) {
         }
     }
     
+    fun hideAllTimerPills() {
+        timerPills.forEach { (packageName, view) ->
+            try {
+                windowManager.removeView(view)
+            } catch (_: Exception) {}
+        }
+        timerPills.clear()
+        Log.d(TAG, "🙈 All timer pills hidden")
+    }
+
     // ========== EXIT CONFIRMATION POPUP ==========
 
 fun showExitConfirmationPopup(
@@ -479,10 +453,6 @@ private fun notifyExitCancelled(packageName: String) {
     
     private fun notifyTimeSelected(packageName: String, minutes: Int) {
         listeners.forEach { it.onTimeSelected(packageName, minutes) }
-    }
-    
-    private fun notifyImpulseCooldownFinished(packageName: String, minutes: Int) {
-        listeners.forEach { it.onImpulseCooldownFinished(packageName, minutes) }
     }
     
     private fun notifyCloseAppRequested() {

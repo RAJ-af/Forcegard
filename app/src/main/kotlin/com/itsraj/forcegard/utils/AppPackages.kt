@@ -27,7 +27,12 @@ class AppPackages(private val context: Context) {
             return false
         }
         
-        // Skip system apps
+        // Skip core system apps
+        if (isCoreSystemApp(packageName)) {
+            return false
+        }
+
+        // Skip system apps that are NOT updated (except if we want to explicitly allow some)
         if (isSystemApp(packageName)) {
             return false
         }
@@ -38,12 +43,35 @@ class AppPackages(private val context: Context) {
         }
         
         // Check if app has launcher icon (user-visible apps only)
+        // Some updated system apps like Chrome HAVE launcher icons
         if (!hasLauncherIcon(packageName)) {
             return false
         }
         
         // ✅ Monitor ALL remaining user apps
         return true
+    }
+
+    private fun isCoreSystemApp(packageName: String): Boolean {
+        val corePackages = listOf(
+            "com.android.systemui",
+            "com.android.settings",
+            "com.android.phone",
+            "com.android.server.telecom",
+            "com.android.dialer",
+            "com.google.android.dialer",
+            "com.android.packageinstaller",
+            "com.google.android.packageinstaller",
+            "com.android.permissioncontroller",
+            "com.google.android.permissioncontroller",
+            "com.android.vending",
+            "com.google.android.gsf",
+            "com.google.android.gms"
+        )
+
+        if (corePackages.any { packageName.contains(it) }) return true
+
+        return false
     }
 
     private fun isSystemApp(packageName: String): Boolean {

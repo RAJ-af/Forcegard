@@ -1,75 +1,55 @@
 package com.itsraj.forcegard.managers
 
 import android.content.Context
-import java.time.LocalDate
+import android.content.SharedPreferences
+import com.itsraj.forcegard.models.CooldownData
+import com.itsraj.forcegard.models.CooldownReason
 
-object AdvancedCooldownManager {
+class CooldownManager(private val context: Context) {
 
-    private const val PREF = "adv_cooldown_pref"
-    private const val KEY_DATE = "cooldown_date"
-    private const val KEY_PREFIX = "cooldown_"
+    private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    fun startCooldown(
-        context: Context,
-        packageName: String,
-        cooldownMillis: Long
-    ) {
-        resetIfNewDay(context)
-
-        val endTime = System.currentTimeMillis() + cooldownMillis
-
-        context.getSharedPreferences(PREF, Context.MODE_PRIVATE)
-            .edit()
-            .putLong(KEY_PREFIX + packageName, endTime)
-            .apply()
+    companion object {
+        private const val PREFS_NAME = "CooldownPrefs"
+        private const val KEY_PREFIX = "cooldown_"
     }
 
-    fun isInCooldown(
-        context: Context,
-        packageName: String
-    ): Boolean {
+    interface CooldownEventListener {
+        fun onCooldownStarted(cooldownData: CooldownData)
+        fun onCooldownExpired(packageName: String)
+        fun onCooldownActive(packageName: String, remainingMs: Long)
+    }
 
-        resetIfNewDay(context)
+    private val listeners = mutableListOf<CooldownEventListener>()
 
-        val endTime =
-            context.getSharedPreferences(PREF, Context.MODE_PRIVATE)
-                .getLong(KEY_PREFIX + packageName, 0L)
+    fun addListener(listener: CooldownEventListener) {
+        listeners.add(listener)
+    }
 
+    fun removeListener(listener: CooldownEventListener) {
+        listeners.remove(listener)
+    }
+
+    fun startCooldown(packageName: String, reason: CooldownReason) {
+        val duration = when(reason) {
+            CooldownReason.USER_REJECTED -> 5 * 60 * 1000L // 5 mins
+            CooldownReason.TIMER_EXPIRED -> 15 * 60 * 1000L // 15 mins
+        }
+        val endTime = System.currentTimeMillis() + duration
+        prefs.edit().putLong(KEY_PREFIX + packageName, endTime).apply()
+
+        val data = CooldownData(packageName, endTime, reason)
+        listeners.forEach { it.onCooldownStarted(data) }
+    }
+
+    fun isInCooldown(packageName: String): Boolean {
+        val endTime = prefs.getLong(KEY_PREFIX + packageName, 0L)
         return System.currentTimeMillis() < endTime
     }
 
-    fun getRemainingCooldown(
-        context: Context,
-        packageName: String
-    ): Long {
-
-        val endTime =
-            context.getSharedPreferences(PREF, Context.MODE_PRIVATE)
-                .getLong(KEY_PREFIX + packageName, 0L)
-
-        return (endTime - System.currentTimeMillis())
-            .coerceAtLeast(0L)
-    }
-
-    private fun resetIfNewDay(context: Context) {
-        val prefs =
-            context.getSharedPreferences(PREF, Context.MODE_PRIVATE)
-
-        val today = LocalDate.now().toString()
-        val savedDate = prefs.getString(KEY_DATE, null)
-
-        if (savedDate != today) {
-            prefs.edit()
-                .clear()
-                .putString(KEY_DATE, today)
-                .apply()
-        }
-    }
-
-    fun clearAll(context: Context) {
-        context.getSharedPreferences(PREF, Context.MODE_PRIVATE)
-            .edit()
-            .clear()
-            .apply()
+    fun getRemainingCooldownTime(packageName: String): Long? {
+        val endTime = prefs.getLong(KEY_PREFIX + packageName, 0L)
+        val remaining = endTime - System.currentTimeMillis()
+        return if (remaining > 0) remaining else null
     }
 }
