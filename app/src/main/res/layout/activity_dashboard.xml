@@ -1,0 +1,479 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:app="http://schemas.android.com/apk/res-auto"
+     android:layout_height="match_parent"
+     android:layout_width="match_parent"
+     android:background="#000000"
+     android:fillViewport="true">
+
+    <LinearLayout
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         android:padding="16dp"
+         android:orientation="vertical">
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:layout_marginBottom="4dp"
+             android:textSize="16sp"
+             android:textColor="#FFFFFF"
+             android:text="FORCEGARD"
+             android:textStyle="bold" />
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:layout_marginBottom="24dp"
+             android:textSize="14sp"
+             android:textColor="#AAAAAA"
+             android:id="@+id/tvDate"
+             android:text="Saturday, December 20" />
+
+        <androidx.cardview.widget.CardView
+             android:layout_height="wrap_content"
+             android:layout_width="match_parent"
+             android:layout_marginBottom="16dp"
+             app:cardElevation="0dp"
+             app:cardBackgroundColor="#1A1A1A"
+             app:cardCornerRadius="16dp"
+             android:id="@+id/cardProtection">
+
+            <LinearLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:padding="20dp"
+                 android:orientation="vertical">
+
+                <TextView
+                     android:layout_height="wrap_content"
+                     android:layout_width="wrap_content"
+                     android:layout_marginBottom="4dp"
+                     android:textSize="18sp"
+                     android:textColor="#FFFFFF"
+                     android:text="Protection Service"
+                     android:textStyle="bold" />
+
+                <TextView
+                     android:layout_height="wrap_content"
+                     android:layout_width="wrap_content"
+                     android:layout_marginBottom="8dp"
+                     android:textSize="14sp"
+                     android:textColor="#AAAAAA"
+                     android:id="@+id/tvServiceStatus"
+                     android:text="Accessibility monitoring is OFF" />
+
+                <TextView
+                     android:layout_height="wrap_content"
+                     android:layout_width="wrap_content"
+                     android:layout_marginBottom="16dp"
+                     android:textSize="12sp"
+                     android:textColor="#777777"
+                     android:id="@+id/tvServiceHelper"
+                     android:text="Turn this on to start tracking and enforcing limits." />
+
+                <Button
+                     android:layout_height="56dp"
+                     android:layout_width="match_parent"
+                     android:textSize="16sp"
+                     android:backgroundTint="#EF4444"
+                     android:textColor="#FFFFFF"
+                     android:id="@+id/btnStartProtection"
+                     android:text="ENABLE PROTECTION"
+                     android:textStyle="bold" />
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <androidx.cardview.widget.CardView
+             android:layout_height="wrap_content"
+             android:layout_width="match_parent"
+             android:layout_marginBottom="16dp"
+             app:cardElevation="0dp"
+             app:cardBackgroundColor="#1A1A1A"
+             app:cardCornerRadius="16dp">
+
+            <LinearLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:padding="20dp"
+                 android:orientation="vertical">
+
+                <TextView
+                     android:layout_height="wrap_content"
+                     android:layout_width="wrap_content"
+                     android:layout_marginBottom="8dp"
+                     android:textSize="16sp"
+                     android:textColor="#FFFFFF"
+                     android:text="Today" />
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:gravity="center_vertical"
+                     android:orientation="horizontal">
+
+                    <LinearLayout
+                         android:layout_height="wrap_content"
+                         android:layout_width="0dp"
+                         android:orientation="vertical"
+                         android:layout_weight="1">
+
+                        <TextView
+                             android:layout_height="wrap_content"
+                             android:layout_width="wrap_content"
+                             android:textSize="32sp"
+                             android:textColor="#FFFFFF"
+                             android:id="@+id/tvScreenTime"
+                             android:text="No daily limit set"
+                             android:textStyle="bold" />
+
+                        <TextView
+                             android:layout_height="wrap_content"
+                             android:layout_width="wrap_content"
+                             android:textSize="13sp"
+                             android:textColor="#888888"
+                             android:layout_marginTop="4dp"
+                             android:id="@+id/tvLimitHelper"
+                             android:text="Set a daily limit to control usage" />
+
+                    </LinearLayout>
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:visibility="gone"
+                         android:textSize="32sp"
+                         android:textColor="#FFFFFF"
+                         android:id="@+id/tvTimeRemaining"
+                         android:text="∞" />
+
+                </LinearLayout>
+
+                <TextView
+                     android:layout_height="wrap_content"
+                     android:layout_width="wrap_content"
+                     android:textSize="12sp"
+                     android:textColor="#AAAAAA"
+                     android:layout_marginTop="12dp"
+                     android:id="@+id/tvLimitReset"
+                     android:text="Limit resets at 12:00 AM" />
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <LinearLayout
+             android:layout_height="wrap_content"
+             android:layout_width="match_parent"
+             android:layout_marginBottom="16dp"
+             android:orientation="horizontal">
+
+            <androidx.cardview.widget.CardView
+                 android:layout_height="wrap_content"
+                 android:layout_width="0dp"
+                 android:layout_marginEnd="8dp"
+                 app:cardElevation="0dp"
+                 app:cardBackgroundColor="#1A1A1A"
+                 app:cardCornerRadius="16dp"
+                 android:layout_weight="1">
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:padding="16dp"
+                     android:orientation="vertical">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:layout_marginBottom="4dp"
+                         android:textSize="14sp"
+                         android:textColor="#FFFFFF"
+                         android:text="Pickups" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="32sp"
+                         android:textColor="#FFFFFF"
+                         android:id="@+id/tvPickups"
+                         android:text="—"
+                         android:textStyle="bold" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="11sp"
+                         android:textColor="#888888"
+                         android:id="@+id/tvPickupsSubtext"
+                         android:text="Enable protection to track" />
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
+            <androidx.cardview.widget.CardView
+                 android:layout_height="wrap_content"
+                 android:layout_width="0dp"
+                 app:cardElevation="0dp"
+                 app:cardBackgroundColor="#1A1A1A"
+                 android:layout_marginStart="8dp"
+                 app:cardCornerRadius="16dp"
+                 android:layout_weight="1">
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:padding="16dp"
+                     android:orientation="vertical">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:layout_marginBottom="4dp"
+                         android:textSize="14sp"
+                         android:textColor="#FFFFFF"
+                         android:text="Daily Avg" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="28sp"
+                         android:textColor="#FFFFFF"
+                         android:id="@+id/tvDailyAvg"
+                         android:text="—"
+                         android:textStyle="bold" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="11sp"
+                         android:textColor="#888888"
+                         android:id="@+id/tvDailyAvgSubtext"
+                         android:text="Appears after few days" />
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
+        </LinearLayout>
+
+        <androidx.cardview.widget.CardView
+             android:layout_height="wrap_content"
+             android:layout_width="match_parent"
+             android:layout_marginBottom="16dp"
+             android:alpha="0.5"
+             app:cardElevation="0dp"
+             app:cardBackgroundColor="#2A1810"
+             app:cardCornerRadius="16dp"
+             android:id="@+id/cardStreak">
+
+            <LinearLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:padding="20dp"
+                 android:orientation="vertical">
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:layout_marginBottom="16dp"
+                     android:gravity="center_vertical"
+                     android:orientation="horizontal">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:layout_marginEnd="8dp"
+                         android:textSize="24sp"
+                         android:id="@+id/tvStreakIcon"
+                         android:text="🔥" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="18sp"
+                         android:textColor="#FFFFFF"
+                         android:text="Discipline Streak"
+                         android:textStyle="bold" />
+
+                </LinearLayout>
+
+                <TextView
+                     android:layout_height="wrap_content"
+                     android:layout_width="wrap_content"
+                     android:layout_marginBottom="8dp"
+                     android:textSize="64sp"
+                     android:textColor="#FFFFFF"
+                     android:layout_marginTop="8dp"
+                     android:id="@+id/tvStreakDays"
+                     android:text="0"
+                     android:textStyle="bold"
+                     android:layout_gravity="center" />
+
+                <TextView
+                     android:layout_height="wrap_content"
+                     android:layout_width="wrap_content"
+                     android:layout_marginBottom="8dp"
+                     android:textSize="16sp"
+                     android:textColor="#FFFFFF"
+                     android:id="@+id/tvStreakText"
+                     android:text="No active streak"
+                     android:layout_gravity="center" />
+
+                <TextView
+                     android:layout_height="wrap_content"
+                     android:layout_width="wrap_content"
+                     android:textAlignment="center"
+                     android:textSize="13sp"
+                     android:textColor="#AAAAAA"
+                     android:id="@+id/tvStreakHelper"
+                     android:text="Set a daily limit and enable protection to build streaks"
+                     android:layout_gravity="center" />
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <androidx.cardview.widget.CardView
+             android:layout_height="wrap_content"
+             android:layout_width="match_parent"
+             android:layout_marginBottom="16dp"
+             app:cardElevation="0dp"
+             app:cardBackgroundColor="#1A1A1A"
+             app:cardCornerRadius="16dp">
+
+            <LinearLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:padding="20dp"
+                 android:orientation="vertical">
+
+                <TextView
+                     android:layout_height="wrap_content"
+                     android:layout_width="wrap_content"
+                     android:layout_marginBottom="16dp"
+                     android:textSize="18sp"
+                     android:textColor="#FFFFFF"
+                     android:text="Most Used Today"
+                     android:textStyle="bold" />
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:orientation="vertical"
+                     android:id="@+id/containerMostUsedApps">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="14sp"
+                         android:textColor="#AAAAAA"
+                         android:id="@+id/tvNoAppsUsed"
+                         android:text="No significant app usage yet" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <androidx.cardview.widget.CardView
+             android:layout_height="wrap_content"
+             android:layout_width="match_parent"
+             app:cardElevation="0dp"
+             app:cardBackgroundColor="#1A1A1A"
+             app:cardCornerRadius="16dp">
+
+            <LinearLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:padding="20dp"
+                 android:orientation="vertical">
+
+                <TextView
+                     android:layout_height="wrap_content"
+                     android:layout_width="wrap_content"
+                     android:layout_marginBottom="16dp"
+                     android:textSize="18sp"
+                     android:textColor="#FFFFFF"
+                     android:text="System Info"
+                     android:textStyle="bold" />
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:layout_marginBottom="12dp"
+                     android:gravity="center_vertical"
+                     android:orientation="horizontal">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:layout_marginEnd="12dp"
+                         android:textSize="20sp"
+                         android:textColor="#EF4444"
+                         android:text="•" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="0dp"
+                         android:textSize="16sp"
+                         android:textColor="#AAAAAA"
+                         android:layout_weight="1"
+                         android:text="Monitored Apps" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="16sp"
+                         android:textColor="#FFFFFF"
+                         android:id="@+id/tvMonitoredApps"
+                         android:text="0"
+                         android:textStyle="bold" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="match_parent"
+                     android:gravity="center_vertical"
+                     android:orientation="horizontal">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:layout_marginEnd="12dp"
+                         android:textSize="20sp"
+                         android:textColor="#EF4444"
+                         android:text="•" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="0dp"
+                         android:textSize="16sp"
+                         android:textColor="#AAAAAA"
+                         android:layout_weight="1"
+                         android:text="Lock Period" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="16sp"
+                         android:textColor="#FFFFFF"
+                         android:id="@+id/tvLockPeriod"
+                         android:text="Not set"
+                         android:textStyle="bold" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+    </LinearLayout>
+
+</ScrollView>

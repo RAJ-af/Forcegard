@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     android:layout_height="wrap_content"
+     android:layout_width="match_parent"
+     android:clickable="false"
+     android:focusable="false"
+     android:layout_gravity="top|center_horizontal">
+
+    <LinearLayout
+         android:layout_height="wrap_content"
+         android:layout_width="wrap_content"
+         android:clickable="false"
+         android:elevation="999dp"
+         android:orientation="horizontal"
+         android:paddingStart="20dp"
+         android:layout_marginTop="16dp"
+         android:focusable="false"
+         android:layout_gravity="center_horizontal"
+         android:paddingEnd="20dp"
+         android:background="@drawable/bg_timer_pill"
+         android:gravity="center"
+         android:paddingBottom="10dp"
+         android:id="@+id/timerPillContainer"
+         android:paddingTop="10dp">
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:layout_marginEnd="8dp"
+             android:textSize="18sp"
+             android:text="⏱" />
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:textSize="18sp"
+             android:fontFamily="sans-serif-medium"
+             android:textColor="#FFFFFF"
+             android:letterSpacing="0.08"
+             android:id="@+id/tvTimerDisplay"
+             android:text="05:00" />
+
+    </LinearLayout>
+
+</FrameLayout>

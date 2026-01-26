@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Theme Colors -->
+    <color name="colorPrimary">#FF6B35</color>
+    <color name="colorPrimaryDark">#E05A2B</color>
+    <color name="colorAccent">#FF4757</color>
+    
+    <!-- Background Colors (Dark Theme) -->
+    <color name="background_dark">#0E1013</color>
+    <color name="background_darker">#050608</color>
+    <color name="surface_dark">#1A1D21</color>
+    
+    <!-- Glass Morphism Colors -->
+    <color name="glass_white_10">#1AFFFFFF</color>
+    <color name="glass_white_15">#26FFFFFF</color>
+    <color name="glass_white_20">#33FFFFFF</color>
+    <color name="glass_white_30">#4DFFFFFF</color>
+    
+    <!-- Text Colors -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B0B0B0</color>
+    <color name="text_tertiary">#707070</color>
+    
+    <!-- Status Colors -->
+    <color name="success_green">#4CAF50</color>
+    <color name="warning_orange">#FF9800</color>
+    <color name="error_red">#FF4757</color>
+    
+    <!-- Progress Bar -->
+    <color name="progress_track">#2A2D31</color>
+    <color name="progress_fill">#FF6B35</color>
+    <color name="card_background">#1E1E1E</color>
+</resources>

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     android:layout_height="match_parent"
+     android:layout_width="match_parent"
+     android:background="#CC000000">
+
+    <FrameLayout
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         android:layout_marginEnd="32dp"
+         android:background="@drawable/glass_container"
+         android:padding="32dp"
+         android:layout_marginStart="32dp"
+         android:id="@+id/cooldown_container"
+         android:layout_gravity="center">
+
+        <LinearLayout
+             android:layout_height="wrap_content"
+             android:layout_width="match_parent"
+             android:gravity="center"
+             android:orientation="vertical">
+
+            <TextView
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:textSize="80sp"
+                 android:fontFamily="sans-serif-medium"
+                 android:textColor="#FFFFFF"
+                 android:id="@+id/tv_cooldown_number"
+                 android:text="25" />
+
+            <TextView
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:textSize="16sp"
+                 android:textColor="#AAAAAA"
+                 android:layout_marginTop="8dp"
+                 android:text="Take a breath..." />
+
+        </LinearLayout>
+
+    </FrameLayout>
+
+</FrameLayout>

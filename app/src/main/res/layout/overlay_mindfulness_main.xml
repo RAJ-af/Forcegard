@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     android:layout_height="match_parent"
+     android:layout_width="match_parent"
+     android:background="#DD000000">
+
+    <LinearLayout
+         android:layout_height="wrap_content"
+         android:layout_width="360dp"
+         android:background="@drawable/glass_container"
+         android:padding="32dp"
+         android:orientation="vertical"
+         android:layout_gravity="center">
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="match_parent"
+             android:layout_marginBottom="12dp"
+             android:gravity="center"
+             android:textSize="22sp"
+             android:textColor="#FFFFFF"
+             android:lineSpacingExtra="4dp"
+             android:letterSpacing="0.02"
+             android:text="Do you need this app\nright now?"
+             android:textStyle="normal" />
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="match_parent"
+             android:layout_marginBottom="40dp"
+             android:gravity="center"
+             android:textSize="13sp"
+             android:textColor="#AAAAAA"
+             android:text="Don't lie to yourself." />
+
+        <Button
+             android:layout_height="56dp"
+             android:layout_width="match_parent"
+             android:layout_marginBottom="12dp"
+             android:background="@drawable/btn_primary"
+             android:textSize="16sp"
+             android:textAllCaps="false"
+             android:textColor="#FFFFFF"
+             android:id="@+id/btn_yes_need"
+             android:text="Yes, I need it"
+             android:textStyle="normal" />
+
+        <Button
+             android:layout_height="56dp"
+             android:layout_width="match_parent"
+             android:layout_marginBottom="12dp"
+             android:background="@drawable/btn_secondary"
+             android:textSize="16sp"
+             android:textAllCaps="false"
+             android:textColor="#CCCCCC"
+             android:id="@+id/btn_exploring"
+             android:text="Just exploring"
+             android:textStyle="normal" />
+
+        <Button
+             android:layout_height="56dp"
+             android:layout_width="match_parent"
+             android:background="@drawable/btn_tertiary"
+             android:textSize="16sp"
+             android:textAllCaps="false"
+             android:textColor="#999999"
+             android:id="@+id/btn_no_need"
+             android:text="No, I don't need it"
+             android:textStyle="normal" />
+
+    </LinearLayout>
+
+</FrameLayout>

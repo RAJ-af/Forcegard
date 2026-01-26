@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     android:layout_height="match_parent"
+     android:layout_width="match_parent"
+     android:background="#DD000000">
+
+    <TextView
+         android:layout_height="wrap_content"
+         android:layout_width="320dp"
+         android:gravity="center"
+         android:background="@drawable/glass_container"
+         android:padding="24dp"
+         android:textSize="18sp"
+         android:textColor="#FFFFFF"
+         android:lineSpacingExtra="6dp"
+         android:id="@+id/tv_quote"
+         android:layout_gravity="center"
+         android:text="Time is the only thing you never get back. Use it well."
+         android:textStyle="normal" />
+
+</FrameLayout>

@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     android:layout_height="match_parent"
+     android:layout_width="match_parent"
+     android:background="#000000">
+
+    <LinearLayout
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         android:padding="20dp"
+         android:orientation="vertical">
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:layout_marginBottom="16dp"
+             android:textSize="22sp"
+             android:textColor="#FFFFFF"
+             android:text="Daily Limit"
+             android:textStyle="bold" />
+
+        <LinearLayout
+             android:layout_height="wrap_content"
+             android:layout_width="match_parent"
+             android:layout_marginBottom="24dp"
+             android:gravity="center"
+             android:orientation="horizontal">
+
+            <NumberPicker
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:textColor="#FFFFFF"
+                 android:id="@+id/pickerHours">
+
+            </NumberPicker>
+
+            <TextView
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:layout_marginHorizontal="8dp"
+                 android:textSize="18sp"
+                 android:textColor="#FFFFFF"
+                 android:text="h" />
+
+            <NumberPicker
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:textColor="#FFFFFF"
+                 android:id="@+id/pickerMinutes">
+
+            </NumberPicker>
+
+            <TextView
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:textSize="18sp"
+                 android:textColor="#FFFFFF"
+                 android:layout_marginStart="8dp"
+                 android:text="m" />
+
+        </LinearLayout>
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:layout_marginBottom="8dp"
+             android:textSize="16sp"
+             android:textColor="#FFFFFF"
+             android:text="Plan duration" />
+
+        <RadioGroup
+             android:layout_height="wrap_content"
+             android:layout_width="match_parent"
+             android:layout_marginBottom="16dp"
+             android:orientation="horizontal">
+
+            <RadioButton
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:textColor="#FFFFFF"
+                 android:checked="true"
+                 android:id="@+id/rbWeekly"
+                 android:text="7 days" />
+
+            <RadioButton
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:textColor="#FFFFFF"
+                 android:layout_marginStart="24dp"
+                 android:id="@+id/rbMonthly"
+                 android:text="30 days" />
+
+        </RadioGroup>
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:layout_marginBottom="8dp"
+             android:textSize="16sp"
+             android:textColor="#FFFFFF"
+             android:text="Daily reset time" />
+
+        <RadioGroup
+             android:layout_height="wrap_content"
+             android:layout_width="match_parent"
+             android:layout_marginBottom="24dp"
+             android:orientation="horizontal">
+
+            <RadioButton
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:textColor="#FFFFFF"
+                 android:checked="false"
+                 android:id="@+id/rbResetMidnight"
+                 android:text="12:00 AM" />
+
+            <RadioButton
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:textColor="#FFFFFF"
+                 android:layout_marginStart="24dp"
+                 android:checked="true"
+                 android:id="@+id/rbReset5am"
+                 android:text="5:00 AM" />
+
+        </RadioGroup>
+
+        <Button
+             android:layout_height="56dp"
+             android:layout_width="match_parent"
+             android:textSize="16sp"
+             android:backgroundTint="#EF4444"
+             android:textColor="#FFFFFF"
+             android:id="@+id/btnSaveLimit"
+             android:text="Save limit"
+             android:textStyle="bold" />
+
+    </LinearLayout>
+
+</ScrollView>

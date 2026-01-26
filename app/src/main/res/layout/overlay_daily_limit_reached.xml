@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     android:layout_height="match_parent"
+     android:layout_width="match_parent"
+     android:background="#DD000000"
+     android:clickable="true"
+     android:focusable="true">
+
+    <LinearLayout
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         android:gravity="center"
+         android:padding="32dp"
+         android:orientation="vertical"
+         android:layout_gravity="center">
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:layout_marginBottom="24dp"
+             android:textSize="64sp"
+             android:text="⏰" />
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:layout_marginBottom="12dp"
+             android:textSize="24sp"
+             android:textColor="#FFFFFF"
+             android:text="Daily Limit Reached"
+             android:textStyle="bold" />
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:layout_marginBottom="24dp"
+             android:textAlignment="center"
+             android:textSize="16sp"
+             android:textColor="#CCCCCC"
+             android:id="@+id/tvLimitMessage"
+             android:text="You've used all your screen time for today" />
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:layout_marginBottom="32dp"
+             android:textSize="14sp"
+             android:textColor="#888888"
+             android:id="@+id/tvResetTime"
+             android:text="Come back at 5:00 AM" />
+
+        <Button
+             android:layout_height="56dp"
+             android:layout_width="wrap_content"
+             android:backgroundTint="#EF4444"
+             android:textColor="#FFFFFF"
+             android:paddingHorizontal="32dp"
+             android:id="@+id/btnGoHome"
+             android:text="Go to Home" />
+
+    </LinearLayout>
+
+</FrameLayout>

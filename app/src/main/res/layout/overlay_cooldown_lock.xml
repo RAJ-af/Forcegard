@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     android:layout_height="match_parent"
+     android:layout_width="match_parent"
+     android:background="#E6000000">
+
+    <LinearLayout
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         android:layout_marginEnd="24dp"
+         android:background="@drawable/glass_container"
+         android:elevation="16dp"
+         android:padding="32dp"
+         android:orientation="vertical"
+         android:layout_marginStart="24dp"
+         android:id="@+id/cooldownCardContainer"
+         android:layout_gravity="center">
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:textSize="32sp"
+             android:fontFamily="sans-serif-medium"
+             android:textColor="#FFFFFF"
+             android:layout_gravity="center"
+             android:text="Time Finished" />
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:textAlignment="center"
+             android:textSize="16sp"
+             android:textColor="#B0B0B0"
+             android:layout_marginTop="8dp"
+             android:id="@+id/tvCooldownAppName"
+             android:layout_gravity="center"
+             android:text="Your limit for this app is over." />
+
+        <View
+             android:layout_height="1dp"
+             android:layout_width="match_parent"
+             android:layout_marginBottom="28dp"
+             android:background="#1AFFFFFF"
+             android:layout_marginTop="28dp" />
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:textSize="17sp"
+             android:textColor="#FFFFFF"
+             android:layout_gravity="center"
+             android:text="Wait 5 minutes to continue" />
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:textSize="56sp"
+             android:fontFamily="sans-serif-medium"
+             android:textColor="#FFFFFF"
+             android:layout_marginTop="20dp"
+             android:id="@+id/tvCooldownTimer"
+             android:layout_gravity="center"
+             android:text="04:59" />
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:textSize="14sp"
+             android:textColor="#888888"
+             android:layout_marginTop="12dp"
+             android:layout_gravity="center"
+             android:text="Short breaks improve focus." />
+
+        <Button
+             android:layout_height="56dp"
+             android:layout_width="match_parent"
+             android:background="@drawable/btn_secondary"
+             android:textSize="16sp"
+             android:textAllCaps="false"
+             android:textColor="#AAAAAA"
+             android:enabled="false"
+             android:layout_marginTop="32dp"
+             android:id="@+id/btnReuseAfter"
+             android:text="Reuse after 04:59" />
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:clickable="true"
+             android:padding="8dp"
+             android:textSize="16sp"
+             android:textColor="#FFFFFF"
+             android:layout_marginTop="20dp"
+             android:focusable="true"
+             android:id="@+id/btnCloseApp"
+             android:layout_gravity="center"
+             android:text="Close app" />
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:visibility="visible"
+             android:textSize="14sp"
+             android:textColor="#FF4757"
+             android:layout_marginTop="16dp"
+             android:id="@+id/tvAutoCloseCountdown"
+             android:layout_gravity="center"
+             android:text="Closing in 5s..." />
+
+    </LinearLayout>
+
+</FrameLayout>

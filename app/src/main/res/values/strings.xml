@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Forcegard</string>
+    <string name="accessibility_service_description">Forcegard monitors app usage to help you stay focused and mindful of your screen time.</string>
+</resources>

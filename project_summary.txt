@@ -1,0 +1,53 @@
+PROJECT SUMMARY: Forcegard
+
+**Project Name:** Forcegard
+
+**Overview:**
+Forcegard is a digital discipline system designed to help users manage and limit their screen time on Android applications. It enforces restrictions, monitors app usage, and provides a dashboard to track progress and maintain focus. The application is built around an Accessibility Service which acts as the core monitoring and enforcement mechanism.
+
+**Core Features:**
+
+1.  **App Usage Monitoring & Enforcement:**
+    *   Utilizes Android's Accessibility Service (`ForcegardAccessibilityService`) to detect app launches, foreground changes, and enforce configured limits.
+    *   Monitors all user-installed applications (excluding system apps and launchers by default).
+
+2.  **Dynamic Overlays:**
+    *   Displays various full-screen and partial overlays to prompt user interaction, show warnings, or enforce cooldowns.
+    *   Includes: Confirmation Popup ("Do you need this app?"), Time Selection Popup, Impulse Cooldown (short delay before app access), Active Timer Pill, Exit Confirmation, Time Finished Popup, Cooldown Lock, and Daily Limit Reached Overlay.
+
+3.  **Session-Based Timers:**
+    *   Allows users to set specific time durations for app usage sessions.
+    *   Timers run in the background, update UI overlays, and trigger actions (like cooldowns) upon expiration.
+
+4.  **Cooldown Mechanism:**
+    *   Implements cooldown periods for apps, triggered when a user rejects using an app or when a timer expires.
+    *   During cooldown, the app is temporarily inaccessible.
+
+5.  **Daily Limit System:**
+    *   Users can set a total daily screen time limit.
+    *   Supports configurable reset times (e.g., midnight, 5 AM) and plan durations (weekly/monthly).
+    *   Blocks access to non-essential apps if the daily limit is exceeded.
+
+6.  **Permission Management & Onboarding:**
+    *   Guides users through critical Android permissions (Usage Access, Overlay Permission, Notifications) required for the app's functionality.
+    *   Provides an introductory flow (`IntroActivity`, `PermissionActivity`) to explain the app's strict enforcement nature and set up initial configurations.
+
+7.  **Dashboard & Analytics:**
+    *   `DashboardActivity` presents a summary of daily screen time, remaining limits, service status, and most used apps.
+    *   Integrates `UsageTimeHelper` to accurately calculate app usage statistics.
+
+8.  **App Detection & Categorization:**
+    *   `AppScanner` and `AppPackages` utilities scan and categorize installed applications (user, system, updated system, launcher apps) to determine which ones should be monitored.
+    *   `AppInstallReceiver` listens for app installation/uninstallation events to keep the monitored app list updated.
+
+**Key Components & Technologies:**
+
+*   **Language:** Kotlin
+*   **Architecture:** Follows Android's component-based architecture with Activities, Services, Broadcast Receivers.
+*   **UI:** Programmatically generated UI (for onboarding/permissions) and XML layouts for various activities and overlays. Uses Material Design components.
+*   **Concurrency:** Kotlin Coroutines for asynchronous operations (e.g., app scanning).
+*   **Data Storage:** SharedPreferences for storing app configurations (daily limits, last scan time, etc.).
+*   **Android APIs:** AccessibilityService, UsageStatsManager, AppOpsManager, PackageManager.
+
+**Purpose/Goal:**
+To provide a robust tool for self-discipline by creating a restrictive environment around distracting applications, helping users regain control over their digital habits and improve productivity.

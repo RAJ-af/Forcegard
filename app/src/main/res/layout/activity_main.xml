@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     android:layout_height="match_parent"
+     android:layout_width="match_parent"
+     android:gravity="center"
+     android:padding="24dp"
+     android:orientation="vertical">
+
+    <TextView
+         android:layout_height="wrap_content"
+         android:layout_width="wrap_content"
+         android:layout_marginBottom="32dp"
+         android:textSize="32sp"
+         android:textColor="#000000"
+         android:text="Forcegard"
+         android:textStyle="bold" />
+
+    <Button
+         android:layout_height="56dp"
+         android:layout_width="match_parent"
+         android:layout_marginBottom="16dp"
+         android:textAllCaps="false"
+         android:id="@+id/btn_enable_service"
+         android:text="Enable Accessibility Service" />
+
+    <Button
+         android:layout_height="56dp"
+         android:layout_width="match_parent"
+         android:layout_marginBottom="16dp"
+         android:textAllCaps="false"
+         android:id="@+id/btn_usage_stats"
+         android:text="Grant Usage Stats Permission" />
+
+    <Button
+         android:layout_height="56dp"
+         android:layout_width="match_parent"
+         android:layout_marginBottom="16dp"
+         android:textAllCaps="false"
+         android:id="@+id/btn_scan"
+         android:text="Basic Scan (Monitored Apps)" />
+
+    <Button
+         android:layout_height="56dp"
+         android:layout_width="match_parent"
+         android:layout_marginBottom="32dp"
+         android:textAllCaps="false"
+         android:id="@+id/btn_advanced_scan"
+         android:text="Advanced Scan (All Apps)" />
+
+    <TextView
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         android:gravity="center"
+         android:background="#F0F0F0"
+         android:padding="16dp"
+         android:textSize="16sp"
+         android:id="@+id/tv_status"
+         android:text="Ready to scan" />
+
+</LinearLayout>
