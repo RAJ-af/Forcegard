@@ -7,13 +7,11 @@ object AllowedAppsManager {
         "com.android.dialer",           // Phone
         "com.google.android.dialer",    // Google Phone
         "com.android.phone",
-        "com.android.contacts",
-        "com.android.mms",              // Messages
-        "com.google.android.apps.messaging", // Google Messages
-        "com.whatsapp",                 // WhatsApp
-        "com.google.android.apps.maps", // Maps
+        "com.android.server.telecom",
+        "com.android.emergency",        // Emergency info
         "com.android.settings",         // Settings
-        "com.android.systemui"          // System UI
+        "com.android.systemui",          // System UI
+        "com.android.packageinstaller"  // Package installer
     )
     
     fun isAllowedWhenLimited(packageName: String): Boolean {

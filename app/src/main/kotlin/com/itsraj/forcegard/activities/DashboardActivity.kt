@@ -15,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import com.itsraj.forcegard.R
 import com.itsraj.forcegard.limits.DailyLimitManager
+import com.itsraj.forcegard.limits.SpendLimitManager
 import com.itsraj.forcegard.utils.UsageTimeHelper
 import java.text.SimpleDateFormat
 import java.util.*
@@ -36,15 +37,11 @@ class DashboardActivity : AppCompatActivity() {
     private lateinit var tvServiceHelper: TextView
     private lateinit var btnStartProtection: Button
     
-    private lateinit var cardStreak: CardView
-    private lateinit var tvStreakDays: TextView
-    private lateinit var tvStreakText: TextView
-    private lateinit var tvStreakHelper: TextView
-    
     private lateinit var containerMostUsedApps: LinearLayout
     private lateinit var tvNoAppsUsed: TextView
     
     private lateinit var dailyLimitManager: DailyLimitManager
+    private lateinit var spendLimitManager: SpendLimitManager
     
     companion object {
         private const val TAG = "DashboardActivity"
@@ -55,6 +52,7 @@ class DashboardActivity : AppCompatActivity() {
         setContentView(R.layout.activity_dashboard)
         
         dailyLimitManager = DailyLimitManager(this)
+        spendLimitManager = SpendLimitManager(this)
         
         initViews()
         updateUI()
@@ -79,11 +77,6 @@ class DashboardActivity : AppCompatActivity() {
         tvServiceStatus = findViewById(R.id.tvServiceStatus)
         tvServiceHelper = findViewById(R.id.tvServiceHelper)
         btnStartProtection = findViewById(R.id.btnStartProtection)
-        
-        cardStreak = findViewById(R.id.cardStreak)
-        tvStreakDays = findViewById(R.id.tvStreakDays)
-        tvStreakText = findViewById(R.id.tvStreakText)
-        tvStreakHelper = findViewById(R.id.tvStreakHelper)
         
         containerMostUsedApps = findViewById(R.id.containerMostUsedApps)
         tvNoAppsUsed = findViewById(R.id.tvNoAppsUsed)
@@ -115,7 +108,6 @@ class DashboardActivity : AppCompatActivity() {
         updateProtectionStatus()
         updateDailyLimitUI()
         updatePickupsAndAverage()
-        updateStreakUI()
         updateMostUsedApps()
     }
 
@@ -138,28 +130,28 @@ class DashboardActivity : AppCompatActivity() {
     private fun updateDailyLimitUI() {
         val config = dailyLimitManager.getConfig()
         
-        if (config == null || !dailyLimitManager.isPlanActive()) {
+        if (config == null || !config.enabled) {
             // No limit set
             tvScreenTime.text = "No limit"
-            tvLimitHelper.text = "Set a daily limit to control usage"
+            tvLimitHelper.text = "Set a spend limit to control usage"
             tvLimitReset.text = "Tap here to set limit"
             return
         }
         
-        // Get today's actual usage using new helper
-        val usedMillis = UsageTimeHelper.getTodayTotalUsageMillis(this, config.resetHour)
-        val limitMillis = config.dailyLimitMinutes * 60000L
+        // Use SpendLimitManager as source of truth for spend limit
+        val usedMillis = spendLimitManager.getUsageMillis()
+        val limitMillis = spendLimitManager.getLimitMillis()
         
         val usedHours = (usedMillis / 3600000).toInt()
         val usedMinutes = ((usedMillis % 3600000) / 60000).toInt()
         
-        val limitHours = config.dailyLimitMinutes / 60
-        val limitMinutes = config.dailyLimitMinutes % 60
+        val limitHours = (limitMillis / 3600000).toInt()
+        val limitMinutes = ((limitMillis % 3600000) / 60000).toInt()
         
         if (usedMillis >= limitMillis) {
             // Limit reached
             tvScreenTime.text = "Limit reached"
-            tvLimitHelper.text = "You've used all your daily time (${limitHours}h ${limitMinutes}m)"
+            tvLimitHelper.text = "You've used all your time (${limitHours}h ${limitMinutes}m)"
         } else {
             // Still time left
             val remainingMillis = limitMillis - usedMillis
@@ -170,8 +162,8 @@ class DashboardActivity : AppCompatActivity() {
             tvLimitHelper.text = "Used: ${usedHours}h ${usedMinutes}m of ${limitHours}h ${limitMinutes}m"
         }
         
-        val resetText = if (config.resetHour == 0) "12:00 AM" else "5:00 AM"
-        tvLimitReset.text = "Limit resets at $resetText"
+        val sdf = SimpleDateFormat("EEEE, MMM dd", Locale.getDefault())
+        tvLimitReset.text = "Resets on ${sdf.format(spendLimitManager.getNextResetDate())}"
     }
 
     private fun updatePickupsAndAverage() {
@@ -180,33 +172,8 @@ class DashboardActivity : AppCompatActivity() {
         tvPickupsSubtext.text = "Enable protection to track"
         
         // Daily average placeholder
-        tvDailyAvg.text = "11h 30m"
+        tvDailyAvg.text = "—"
         tvDailyAvgSubtext.text = "Appears after few days"
-    }
-
-    private fun updateStreakUI() {
-        val config = dailyLimitManager.getConfig()
-        
-        if (config == null || !dailyLimitManager.isPlanActive()) {
-            tvStreakDays.text = "0"
-            tvStreakText.text = "No active streak"
-            tvStreakHelper.text = "Set a daily limit and enable protection to build streaks"
-            return
-        }
-        
-        // Get today's usage
-        val usedMillis = UsageTimeHelper.getTodayTotalUsageMillis(this, config.resetHour)
-        val limitMillis = config.dailyLimitMinutes * 60000L
-        
-        if (usedMillis >= limitMillis) {
-            tvStreakDays.text = "0"
-            tvStreakText.text = "Limit exceeded today"
-            tvStreakHelper.text = "Stay within limit to maintain streak"
-        } else {
-            tvStreakDays.text = "0"
-            tvStreakText.text = "No active streak"
-            tvStreakHelper.text = "Set a daily limit and enable protection to build streaks"
-        }
     }
 
     private fun updateMostUsedApps() {
@@ -246,12 +213,11 @@ class DashboardActivity : AppCompatActivity() {
             }
             tvAppTime.text = timeText
             
-            // Try to get app icon - FIXED: using system icon as fallback
+            // Try to get app icon
             try {
                 val icon = packageManager.getApplicationIcon(appInfo.packageName)
                 ivAppIcon.setImageDrawable(icon)
             } catch (e: Exception) {
-                // Use system default icon instead of custom drawable
                 ivAppIcon.setImageResource(android.R.drawable.ic_menu_gallery)
             }
             

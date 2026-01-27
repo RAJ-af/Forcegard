@@ -4,9 +4,10 @@ package com.itsraj.forcegard.services
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
-import android.app.usage.UsageStatsManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
@@ -15,15 +16,17 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
-import android.widget.Button
 import android.widget.TextView
 import com.itsraj.forcegard.R
 import com.itsraj.forcegard.limits.AllowedAppsManager
 import com.itsraj.forcegard.limits.DailyLimitManager
+import com.itsraj.forcegard.limits.SpendLimitManager
 import com.itsraj.forcegard.managers.*
 import com.itsraj.forcegard.models.CooldownReason
 import com.itsraj.forcegard.models.TimerData
 import com.itsraj.forcegard.utils.AppCategory
+import java.text.SimpleDateFormat
+import java.util.*
 
 class ForcegardAccessibilityService : AccessibilityService(),
     AppDetectionManager.AppStateListener,
@@ -39,9 +42,26 @@ class ForcegardAccessibilityService : AccessibilityService(),
     private lateinit var overlayManager: OverlayManager
     private lateinit var foregroundTracker: ForegroundAppTracker
     private lateinit var dailyLimitManager: DailyLimitManager
+    private lateinit var spendLimitManager: SpendLimitManager
     
     private val handler = Handler(Looper.getMainLooper())
     private var dailyLimitOverlay: View? = null
+
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                Intent.ACTION_SCREEN_ON -> spendLimitManager.onScreenOn()
+                Intent.ACTION_SCREEN_OFF -> spendLimitManager.onScreenOff()
+            }
+        }
+    }
+
+    private val limitCheckRunnable = object : Runnable {
+        override fun run() {
+            checkCurrentLimit()
+            handler.postDelayed(this, 1000)
+        }
+    }
 
     companion object {
         private const val TAG = "ForcegardService"
@@ -75,6 +95,20 @@ class ForcegardAccessibilityService : AccessibilityService(),
         
         // Start tracking
         foregroundTracker.startTracking()
+
+        // Register screen receiver
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_SCREEN_OFF)
+        }
+        registerReceiver(screenReceiver, filter)
+
+        // Start limit check loop
+        handler.post(limitCheckRunnable)
+
+        // Start guard service
+        startService(Intent(this, GuardService::class.java))
+
         Log.d(TAG, "🎯 Service ready")
     }
 
@@ -82,10 +116,11 @@ class ForcegardAccessibilityService : AccessibilityService(),
         // Initialize all managers
         appDetectionManager = AppDetectionManager(this)
         timerManager = TimerManager()
-        cooldownManager = CooldownManager()
+        cooldownManager = CooldownManager(this)
         overlayManager = OverlayManager(this)
         foregroundTracker = ForegroundAppTracker(this)
         dailyLimitManager = DailyLimitManager(this)
+        spendLimitManager = SpendLimitManager(this)
         
         // Register listeners
         appDetectionManager.addListener(this)
@@ -101,10 +136,14 @@ class ForcegardAccessibilityService : AccessibilityService(),
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
-        if (overlayManager.isTransitioning()) return
         
         val packageName = event.packageName?.toString() ?: return
         
+        // Track usage (Event is source of truth)
+        spendLimitManager.updateForegroundApp(packageName)
+
+        if (overlayManager.isTransitioning()) return
+
         // Ignore system UI
         if (packageName.startsWith("com.android.systemui")) return
         if (packageName == this.packageName) return
@@ -125,7 +164,12 @@ class ForcegardAccessibilityService : AccessibilityService(),
         timerManager.stopAll()
         overlayManager.cleanupAll()
         removeDailyLimitOverlay()
+        handler.removeCallbacks(limitCheckRunnable)
         
+        try {
+            unregisterReceiver(screenReceiver)
+        } catch (e: Exception) {}
+
         // Unregister listeners
         appDetectionManager.removeListener(this)
         timerManager.removeListener(this)
@@ -145,8 +189,7 @@ class ForcegardAccessibilityService : AccessibilityService(),
         if (from != null &&
             appDetectionManager.shouldMonitor(from) &&
             timerManager.hasActiveTimer(from) &&
-            to != from &&
-            to != null) {
+            to != from) {
             
             val toCategory = appDetectionManager.getAppCategory(to)
             if (toCategory != AppCategory.SYSTEM) {
@@ -173,14 +216,18 @@ class ForcegardAccessibilityService : AccessibilityService(),
             overlayManager.hideAllTimerPills()
         }
         
-        // ===== DAILY LIMIT CHECK (PRIORITY 1) =====
-        if (isDailyLimitExceeded() && !AllowedAppsManager.isAllowedWhenLimited(packageName)) {
-            Log.d(TAG, "⏰ Daily limit exceeded, blocking: $packageName")
-            showDailyLimitOverlay()
-            handler.postDelayed({
-                performGlobalAction(GLOBAL_ACTION_HOME)
-            }, 1000)
-            return
+        // ===== SPEND LIMIT CHECK (PRIORITY 1) =====
+        if (spendLimitManager.isLimitReached()) {
+            if (!AllowedAppsManager.isAllowedWhenLimited(packageName)) {
+                Log.d(TAG, "⏰ Spend limit reached, blocking: $packageName")
+                showDailyLimitOverlay()
+                handler.postDelayed({
+                    performGlobalAction(GLOBAL_ACTION_HOME)
+                }, 1000)
+                return
+            }
+        } else {
+            removeDailyLimitOverlay()
         }
         // ==========================================
         
@@ -218,65 +265,67 @@ class ForcegardAccessibilityService : AccessibilityService(),
         return GUARDED_CATEGORIES.contains(category)
     }
 
-    // ========== DAILY LIMIT HELPERS ==========
-    
-    private fun isDailyLimitExceeded(): Boolean {
-        val config = dailyLimitManager.getConfig() ?: return false
-        if (!dailyLimitManager.isPlanActive()) return false
-        
-        val (startWindow, endWindow) = dailyLimitManager.getTodayWindow()
-        val usedMillis = getTotalUsageInWindow(startWindow, endWindow)
-        val limitMillis = config.dailyLimitMinutes * 60000L
-        
-        return usedMillis >= limitMillis
-    }
+    // ========== SPEND LIMIT HELPERS ==========
 
-    private fun getTotalUsageInWindow(startMillis: Long, endMillis: Long): Long {
-        try {
-            val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-            val usageStats = usageStatsManager.queryUsageStats(
-                UsageStatsManager.INTERVAL_DAILY,
-                startMillis,
-                endMillis
-            )
-            
-            return usageStats?.sumOf { it.totalTimeInForeground } ?: 0L
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting usage stats: ${e.message}")
-            return 0L
+    private fun checkCurrentLimit() {
+        if (spendLimitManager.isLimitReached()) {
+            val currentPkg = foregroundTracker.getCurrentForegroundApp()
+            if (currentPkg != null && !AllowedAppsManager.isAllowedWhenLimited(currentPkg)) {
+                handleAppChange(currentPkg, "LimitLoop")
+            }
+        } else {
+            removeDailyLimitOverlay()
         }
     }
 
     private fun showDailyLimitOverlay() {
-        if (dailyLimitOverlay != null) return // Already showing
-        
-        val config = dailyLimitManager.getConfig() ?: return
+        if (dailyLimitOverlay != null) {
+            updateDailyLimitOverlayUI()
+            return
+        }
         
         val inflater = LayoutInflater.from(this)
         dailyLimitOverlay = inflater.inflate(R.layout.overlay_daily_limit_reached, null)
         
-        val tvResetTime = dailyLimitOverlay?.findViewById<TextView>(R.id.tvResetTime)
-        val btnGoHome = dailyLimitOverlay?.findViewById<Button>(R.id.btnGoHome)
-        
-        val resetText = if (config.resetHour == 0) "12:00 AM" else "5:00 AM"
-        tvResetTime?.text = "Come back at $resetText"
-        
-        btnGoHome?.setOnClickListener {
-            removeDailyLimitOverlay()
-            performGlobalAction(GLOBAL_ACTION_HOME)
-        }
+        updateDailyLimitOverlayUI()
         
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
             PixelFormat.TRANSLUCENT
         )
         
         val windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         windowManager.addView(dailyLimitOverlay, params)
+    }
+
+    private fun updateDailyLimitOverlayUI() {
+        dailyLimitOverlay?.let { view ->
+            val tvTitle = view.findViewById<TextView>(R.id.tvLockTitle)
+            val tvSubtitle = view.findViewById<TextView>(R.id.tvLockSubtitle)
+            val tvTimeRemaining = view.findViewById<TextView>(R.id.tvTimeRemaining)
+            val tvResetDate = view.findViewById<TextView>(R.id.tvResetDate)
+
+            tvTitle.text = "LIMIT REACHED"
+            tvSubtitle.text = "You have exhausted your digital spend limit."
+
+            val remainingMs = spendLimitManager.getNextResetDate().time - System.currentTimeMillis()
+            tvTimeRemaining.text = "Resets in: ${formatDuration(remainingMs)}"
+
+            val sdf = SimpleDateFormat("EEEE, MMM dd", Locale.getDefault())
+            tvResetDate.text = "Next reset: ${sdf.format(spendLimitManager.getNextResetDate())}"
+        }
+    }
+
+    private fun formatDuration(millis: Long): String {
+        val seconds = (millis / 1000) % 60
+        val minutes = (millis / (1000 * 60)) % 60
+        val hours = (millis / (1000 * 60 * 60))
+        return String.format("%02d:%02d:%02d", hours, minutes, seconds)
     }
 
     private fun removeDailyLimitOverlay() {
