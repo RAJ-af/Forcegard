@@ -40,11 +40,6 @@ class LockActivity : AppCompatActivity() {
             }
         })
 
-        binding.btnAction.setOnClickListener {
-            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            startActivity(intent)
-        }
-
         updateUI()
     }
 
@@ -66,40 +61,28 @@ class LockActivity : AppCompatActivity() {
     }
 
     private fun shouldBeLocked(): Boolean {
-        val isAccessibilityEnabled = isAccessibilityServiceEnabled(this)
-        val isLimitReached = spendLimitManager.isLimitReached()
-        return !isAccessibilityEnabled || isLimitReached
+        return spendLimitManager.isLimitReached()
     }
 
     private fun updateUI() {
-        val isAccessibilityEnabled = isAccessibilityServiceEnabled(this)
         val isLimitReached = spendLimitManager.isLimitReached()
 
-        if (isAccessibilityEnabled && !isLimitReached) {
+        if (!isLimitReached) {
             finish()
             return
         }
 
-        if (!isAccessibilityEnabled) {
-            binding.tvLockTitle.text = "SECURITY ALERT"
-            binding.tvLockSubtitle.text = "Accessibility service has been disabled. Forcegard requires it to maintain discipline."
-            binding.tvTimeRemaining.visibility = View.GONE
-            binding.tvResetDate.visibility = View.GONE
-            binding.btnAction.visibility = View.VISIBLE
-            binding.btnAction.text = "ENABLE ACCESSIBILITY"
-        } else if (isLimitReached) {
-            binding.tvLockTitle.text = "LIMIT REACHED"
-            binding.tvLockSubtitle.text = "You have exhausted your digital spend limit."
-            binding.tvTimeRemaining.visibility = View.VISIBLE
-            binding.tvResetDate.visibility = View.VISIBLE
-            binding.btnAction.visibility = View.GONE
+        binding.tvLockTitle.text = "LIMIT REACHED"
+        binding.tvLockSubtitle.text = "You have exhausted your digital spend limit."
+        binding.tvTimeRemaining.visibility = View.VISIBLE
+        binding.tvResetDate.visibility = View.VISIBLE
+        binding.btnAction.visibility = View.GONE
 
-            val remainingMs = getRemainingTimeUntilReset()
-            binding.tvTimeRemaining.text = "Resets in: ${formatDuration(remainingMs)}"
+        val remainingMs = getRemainingTimeUntilReset()
+        binding.tvTimeRemaining.text = "Resets in: ${formatDuration(remainingMs)}"
 
-            val sdf = SimpleDateFormat("EEEE, MMM dd", Locale.getDefault())
-            binding.tvResetDate.text = "Next reset: ${sdf.format(spendLimitManager.getNextResetDate())}"
-        }
+        val sdf = SimpleDateFormat("EEEE, MMM dd", Locale.getDefault())
+        binding.tvResetDate.text = "Next reset: ${sdf.format(spendLimitManager.getNextResetDate())}"
     }
 
     private fun getRemainingTimeUntilReset(): Long {
@@ -111,11 +94,5 @@ class LockActivity : AppCompatActivity() {
         val minutes = (millis / (1000 * 60)) % 60
         val hours = (millis / (1000 * 60 * 60))
         return String.format("%02d:%02d:%02d", hours, minutes, seconds)
-    }
-
-    private fun isAccessibilityServiceEnabled(context: Context): Boolean {
-        val expectedComponentName = "com.itsraj.forcegard/com.itsraj.forcegard.services.ForcegardAccessibilityService"
-        val enabledServices = Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
-        return enabledServices?.contains(expectedComponentName) == true
     }
 }
