@@ -198,6 +198,7 @@ class AppScanner(private val context: Context) {
     fun categorizeApp(appInfo: ApplicationInfo, packageName: String, allowInternet: Boolean = false): AppCategory {
         // 1. Check Local Cache
         cacheManager.getCachedCategory(packageName)?.let {
+            Log.d(TAG, "📦 Cache hit for $packageName: ${it.category}")
             return it.category
         }
 
@@ -237,15 +238,26 @@ class AppScanner(private val context: Context) {
             }
         }
 
+        if (resolvedCategory != AppCategory.OTHER) {
+            Log.d(TAG, "🤖 System resolved $packageName as $resolvedCategory")
+        }
+
         // 3. Internet Fallback (if system category is undefined/unreliable and allowed)
         if (resolvedCategory == AppCategory.OTHER && allowInternet) {
+            Log.d(TAG, "🌐 Requesting internet resolution for $packageName...")
             InternetCategoryLookup.fetchCategory(packageName)?.let {
                 resolvedCategory = it
+                source = CategorySource.INTERNET
+                Log.d(TAG, "🌐 Internet resolved $packageName as $resolvedCategory")
+            } ?: run {
+                Log.w(TAG, "🌐 Internet resolution failed for $packageName, caching as OTHER")
+                // We cache OTHER on failure to avoid repeated network attempts
                 source = CategorySource.INTERNET
             }
         }
         
         // 4. Save to Cache
+        // We always save if it's not OTHER, or if we explicitly allowed an internet lookup (even if it failed)
         if (resolvedCategory != AppCategory.OTHER || allowInternet) {
             cacheManager.saveCategory(packageName, resolvedCategory, source)
         }

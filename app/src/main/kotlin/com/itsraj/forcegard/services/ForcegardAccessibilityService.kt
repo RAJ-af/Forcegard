@@ -216,6 +216,8 @@ class ForcegardAccessibilityService : AccessibilityService(),
             overlayManager.hideAllTimerPills()
         }
         
+        Log.v(TAG, "🔍 App change detected: $packageName (Source: $source)")
+
         // ===== SPEND LIMIT CHECK (PRIORITY 1) =====
         if (spendLimitManager.isLimitReached()) {
             if (!AllowedAppsManager.isAllowedWhenLimited(packageName)) {
@@ -255,9 +257,15 @@ class ForcegardAccessibilityService : AccessibilityService(),
         }
         
         // Show confirmation ONLY if category is guarded and no overlay visible
-        if (!overlayManager.isOverlayVisible() && isCategoryGuarded(appState.category)) {
-            Log.d(TAG, "✅ TRIGGER [$source]: $packageName (Category: ${appState.category})")
-            overlayManager.showConfirmationPopup(packageName)
+        if (isCategoryGuarded(appState.category)) {
+            if (!overlayManager.isOverlayVisible()) {
+                Log.i(TAG, "🛡️ GUARD TRIGGER [$source]: $packageName (Category: ${appState.category})")
+                overlayManager.showConfirmationPopup(packageName)
+            } else {
+                Log.v(TAG, "🛡️ App is guarded but overlay already visible: $packageName")
+            }
+        } else {
+            Log.v(TAG, "🛡️ App is not guarded: $packageName (Category: ${appState.category})")
         }
     }
 

@@ -11,31 +11,45 @@ object InternetCategoryLookup {
     private const val PLAY_STORE_URL = "https://play.google.com/store/apps/details?id="
 
     fun fetchCategory(packageName: String): AppCategory? {
+        if (packageName.isEmpty()) return null
+
         var connection: HttpURLConnection? = null
         return try {
             val url = URL("$PLAY_STORE_URL$packageName")
             connection = url.openConnection() as HttpURLConnection
             connection.requestMethod = "GET"
-            connection.connectTimeout = 5000
-            connection.readTimeout = 5000
-            connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+            connection.connectTimeout = 3000 // Reduced timeout for better responsiveness
+            connection.readTimeout = 3000
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 
-            if (connection.responseCode == 200) {
+            val responseCode = connection.responseCode
+            if (responseCode == 200) {
                 val reader = BufferedReader(InputStreamReader(connection.inputStream))
                 val content = StringBuilder()
                 var line: String?
-                while (reader.readLine().also { line = it } != null) {
+                var linesRead = 0
+                // Play Store pages are large, but category info is usually in the first few hundred lines
+                while (reader.readLine().also { line = it } != null && linesRead < 500) {
                     content.append(line)
-                    // Optimization: stop if we find what we need
-                    if (content.contains("itemprop=\"genre\"") || content.contains("category/")) {
-                        // Keep reading a bit more to ensure we have the category
-                    }
+                    linesRead++
                 }
-                parseCategoryFromHtml(content.toString())
+                val html = content.toString()
+                if (html.isEmpty()) {
+                    Log.w(TAG, "Received empty HTML for $packageName")
+                    null
+                } else {
+                    parseCategoryFromHtml(html)
+                }
             } else {
-                Log.w(TAG, "Failed to fetch category for $packageName: ${connection.responseCode}")
+                Log.w(TAG, "Failed to fetch category for $packageName: HTTP $responseCode")
                 null
             }
+        } catch (e: java.net.SocketTimeoutException) {
+            Log.w(TAG, "Timeout fetching category for $packageName")
+            null
+        } catch (e: java.net.UnknownHostException) {
+            Log.w(TAG, "Offline or DNS failure for $packageName")
+            null
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching category for $packageName: ${e.message}")
             null

@@ -24,13 +24,19 @@ class CategoryCacheManager(context: Context) {
     fun getCachedCategory(packageName: String): CachedCategory? {
         val cachedValue = prefs.getString(packageName, null) ?: return null
         val parts = cachedValue.split(DELIMITER)
-        if (parts.size != 2) return null
+        if (parts.size != 2) {
+            // Invalid format, clear it
+            prefs.edit().remove(packageName).apply()
+            return null
+        }
 
         return try {
             val category = AppCategory.valueOf(parts[0])
             val source = CategorySource.valueOf(parts[1])
             CachedCategory(category, source)
         } catch (e: Exception) {
+            // Probably enum mismatch after upgrade or corruption
+            prefs.edit().remove(packageName).apply()
             null
         }
     }
