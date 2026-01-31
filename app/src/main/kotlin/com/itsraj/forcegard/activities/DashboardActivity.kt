@@ -138,26 +138,15 @@ class DashboardActivity : AppCompatActivity() {
             return
         }
         
- feature/fix-and-improve-forcegard-logic-16717827945977915065
         // Use SpendLimitManager as source of truth for spend limit
         val usedMillis = spendLimitManager.getUsageMillis()
         val limitMillis = spendLimitManager.getLimitMillis()
-
-        // Get actual usage using new helper
-        val usedMillis = UsageTimeHelper.getTodayTotalUsageMillis(this, config.resetHour)
-        val limitMillis = config.limitMinutes * 60000L
- main
         
         val usedHours = (usedMillis / 3600000).toInt()
         val usedMinutes = ((usedMillis % 3600000) / 60000).toInt()
         
- feature/fix-and-improve-forcegard-logic-16717827945977915065
         val limitHours = (limitMillis / 3600000).toInt()
         val limitMinutes = ((limitMillis % 3600000) / 60000).toInt()
-
-        val limitHours = config.limitMinutes / 60
-        val limitMinutes = config.limitMinutes % 60
- main
         
         if (usedMillis >= limitMillis) {
             // Limit reached

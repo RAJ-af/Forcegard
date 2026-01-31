@@ -20,11 +20,7 @@ import android.widget.TextView
 import com.itsraj.forcegard.R
 import com.itsraj.forcegard.limits.AllowedAppsManager
 import com.itsraj.forcegard.limits.DailyLimitManager
- feature/fix-and-improve-forcegard-logic-16717827945977915065
 import com.itsraj.forcegard.limits.SpendLimitManager
-
-import com.itsraj.forcegard.utils.UsageTimeHelper
- main
 import com.itsraj.forcegard.managers.*
 import com.itsraj.forcegard.models.CooldownReason
 import com.itsraj.forcegard.models.TimerData
@@ -220,19 +216,12 @@ class ForcegardAccessibilityService : AccessibilityService(),
             overlayManager.hideAllTimerPills()
         }
         
- feature/fix-and-improve-forcegard-logic-16717827945977915065
         Log.v(TAG, "🔍 App change detected: $packageName (Source: $source)")
 
         // ===== SPEND LIMIT CHECK (PRIORITY 1) =====
         if (spendLimitManager.isLimitReached()) {
             if (!AllowedAppsManager.isAllowedWhenLimited(packageName)) {
                 Log.d(TAG, "⏰ Spend limit reached, blocking: $packageName")
-
-        // ===== DAILY LIMIT CHECK (PRIORITY 1) =====
-        if (isDailyLimitExceeded()) {
-            if (!AllowedAppsManager.isAllowedWhenLimited(packageName)) {
-                Log.d(TAG, "⏰ Daily limit exceeded, blocking: $packageName")
- main
                 showDailyLimitOverlay()
                 handler.postDelayed({
                     performGlobalAction(GLOBAL_ACTION_HOME)
@@ -284,7 +273,6 @@ class ForcegardAccessibilityService : AccessibilityService(),
         return GUARDED_CATEGORIES.contains(category)
     }
 
- feature/fix-and-improve-forcegard-logic-16717827945977915065
     // ========== SPEND LIMIT HELPERS ==========
 
     private fun checkCurrentLimit() {
@@ -296,23 +284,6 @@ class ForcegardAccessibilityService : AccessibilityService(),
         } else {
             removeDailyLimitOverlay()
         }
-
-    // ========== DAILY LIMIT HELPERS ==========
-    
-    private fun isDailyLimitExceeded(): Boolean {
-        val config = dailyLimitManager.getConfig() ?: return false
-        if (!config.enabled) return false
-        
-        val (startWindow, endWindow) = dailyLimitManager.getTodayWindow()
-        val usedMillis = getTotalUsageInWindow(startWindow, endWindow)
-        val limitMillis = config.limitMinutes * 60000L
-        
-        return usedMillis >= limitMillis
-    }
-
-    private fun getTotalUsageInWindow(startMillis: Long, endMillis: Long): Long {
-        return UsageTimeHelper.getTotalScreenTime(this, startMillis, endMillis)
- main
     }
 
     private fun showDailyLimitOverlay() {
