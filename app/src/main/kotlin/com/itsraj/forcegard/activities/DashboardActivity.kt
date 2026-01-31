@@ -15,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import com.itsraj.forcegard.R
 import com.itsraj.forcegard.limits.DailyLimitManager
+import com.itsraj.forcegard.limits.SpendLimitManager
 import com.itsraj.forcegard.utils.UsageTimeHelper
 import java.text.SimpleDateFormat
 import java.util.*
@@ -40,6 +41,7 @@ class DashboardActivity : AppCompatActivity() {
     private lateinit var tvNoAppsUsed: TextView
     
     private lateinit var dailyLimitManager: DailyLimitManager
+    private lateinit var spendLimitManager: SpendLimitManager
     
     companion object {
         private const val TAG = "DashboardActivity"
@@ -50,6 +52,7 @@ class DashboardActivity : AppCompatActivity() {
         setContentView(R.layout.activity_dashboard)
         
         dailyLimitManager = DailyLimitManager(this)
+        spendLimitManager = SpendLimitManager(this)
         
         initViews()
         updateUI()
@@ -130,20 +133,31 @@ class DashboardActivity : AppCompatActivity() {
         if (config == null || !config.enabled) {
             // No limit set
             tvScreenTime.text = "No limit"
-            tvLimitHelper.text = "Set a daily limit to control usage"
+            tvLimitHelper.text = "Set a spend limit to control usage"
             tvLimitReset.text = "Tap here to set limit"
             return
         }
         
+ feature/fix-and-improve-forcegard-logic-16717827945977915065
+        // Use SpendLimitManager as source of truth for spend limit
+        val usedMillis = spendLimitManager.getUsageMillis()
+        val limitMillis = spendLimitManager.getLimitMillis()
+
         // Get actual usage using new helper
         val usedMillis = UsageTimeHelper.getTodayTotalUsageMillis(this, config.resetHour)
         val limitMillis = config.limitMinutes * 60000L
+ main
         
         val usedHours = (usedMillis / 3600000).toInt()
         val usedMinutes = ((usedMillis % 3600000) / 60000).toInt()
         
+ feature/fix-and-improve-forcegard-logic-16717827945977915065
+        val limitHours = (limitMillis / 3600000).toInt()
+        val limitMinutes = ((limitMillis % 3600000) / 60000).toInt()
+
         val limitHours = config.limitMinutes / 60
         val limitMinutes = config.limitMinutes % 60
+ main
         
         if (usedMillis >= limitMillis) {
             // Limit reached
@@ -159,8 +173,8 @@ class DashboardActivity : AppCompatActivity() {
             tvLimitHelper.text = "Used: ${usedHours}h ${usedMinutes}m of ${limitHours}h ${limitMinutes}m"
         }
         
-        val resetText = if (config.resetHour == 0) "12:00 AM" else "5:00 AM"
-        tvLimitReset.text = "Limit resets at $resetText"
+        val sdf = SimpleDateFormat("EEEE, MMM dd", Locale.getDefault())
+        tvLimitReset.text = "Resets on ${sdf.format(spendLimitManager.getNextResetDate())}"
     }
 
     private fun updatePickupsAndAverage() {

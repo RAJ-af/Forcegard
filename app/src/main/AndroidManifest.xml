@@ -119,7 +119,25 @@
             android:name=".activities.DailyLimitActivity"
             android:exported="false"
             android:theme="@style/Theme.AppCompat.NoActionBar" />
-    
+
+        <activity
+            android:name=".activities.LockActivity"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+
+        <service
+            android:name=".services.GuardService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Device security and limit enforcement" />
+        </service>
+
     </application>
 
 </manifest>

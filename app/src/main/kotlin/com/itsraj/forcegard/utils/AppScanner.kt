@@ -37,6 +37,7 @@ enum class AppCategory {
     GAME,
     VIDEO_MUSIC,
     PRODUCTIVITY,
+    EDUCATION,
     OTHER,
     SYSTEM,
     LAUNCHER,
@@ -46,6 +47,7 @@ enum class AppCategory {
 class AppScanner(private val context: Context) {
 
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val cacheManager = CategoryCacheManager(context)
     private val packageManager: PackageManager = context.packageManager
     private val TAG = "AppScanner"
 
@@ -78,7 +80,7 @@ class AppScanner(private val context: Context) {
             
             installedPackages.forEach { packageInfo ->
                 try {
-                    val scannedApp = analyzePackage(packageInfo)
+                    val scannedApp = analyzePackage(packageInfo, true)
                     scannedApps.add(scannedApp)
                     
                     when (scannedApp.category) {
@@ -116,7 +118,7 @@ class AppScanner(private val context: Context) {
     /**
      * Analyze single package deeply
      */
-    private fun analyzePackage(packageInfo: PackageInfo): ScannedApp {
+    private fun analyzePackage(packageInfo: PackageInfo, allowInternet: Boolean = false): ScannedApp {
         val appInfo = packageInfo.applicationInfo
         val packageName = packageInfo.packageName
         
@@ -137,7 +139,7 @@ class AppScanner(private val context: Context) {
         }
         
         // Determine category
-        val category = categorizeApp(appInfo, packageName)
+        val category = categorizeApp(appInfo, packageName, allowInternet)
         
         // System app checks
         val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
@@ -191,14 +193,22 @@ class AppScanner(private val context: Context) {
 
     /**
      * Smart categorization based on App Manager logic
+     * Hybrid Model: Cache -> System -> Internet
      */
-    fun categorizeApp(appInfo: ApplicationInfo, packageName: String): AppCategory {
+    fun categorizeApp(appInfo: ApplicationInfo, packageName: String, allowInternet: Boolean = false): AppCategory {
+        // 1. Check Local Cache
+        cacheManager.getCachedCategory(packageName)?.let {
+            Log.d(TAG, "📦 Cache hit for $packageName: ${it.category}")
+            return it.category
+        }
+
         val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
         val isUpdatedSystem = (appInfo.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
         val isEnabled = appInfo.enabled
         
         // Check if launcher
         if (isLauncherApp(packageName)) {
+            cacheManager.saveCategory(packageName, AppCategory.LAUNCHER, CategorySource.SYSTEM)
             return AppCategory.LAUNCHER
         }
         
@@ -209,23 +219,50 @@ class AppScanner(private val context: Context) {
 
         // Handle core system apps first
         if (isSystem && !isUpdatedSystem) {
+            cacheManager.saveCategory(packageName, AppCategory.SYSTEM, CategorySource.SYSTEM)
             return AppCategory.SYSTEM
         }
         
-        // Use Android's ApplicationInfo.category if available (API 26+)
+        // 2. Try Android System Category
+        var resolvedCategory: AppCategory = AppCategory.OTHER
+        var source = CategorySource.SYSTEM
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            return when (appInfo.category) {
+            resolvedCategory = when (appInfo.category) {
                 ApplicationInfo.CATEGORY_SOCIAL -> AppCategory.SOCIAL
                 ApplicationInfo.CATEGORY_GAME -> AppCategory.GAME
                 ApplicationInfo.CATEGORY_VIDEO, ApplicationInfo.CATEGORY_AUDIO -> AppCategory.VIDEO_MUSIC
                 ApplicationInfo.CATEGORY_PRODUCTIVITY, ApplicationInfo.CATEGORY_IMAGE, ApplicationInfo.CATEGORY_NEWS -> AppCategory.PRODUCTIVITY
-                ApplicationInfo.CATEGORY_MAPS -> AppCategory.PRODUCTIVITY // Maps often Productivity
+                ApplicationInfo.CATEGORY_MAPS -> AppCategory.PRODUCTIVITY
                 else -> AppCategory.OTHER
             }
         }
+
+        if (resolvedCategory != AppCategory.OTHER) {
+            Log.d(TAG, "🤖 System resolved $packageName as $resolvedCategory")
+        }
+
+        // 3. Internet Fallback (if system category is undefined/unreliable and allowed)
+        if (resolvedCategory == AppCategory.OTHER && allowInternet) {
+            Log.d(TAG, "🌐 Requesting internet resolution for $packageName...")
+            InternetCategoryLookup.fetchCategory(packageName)?.let {
+                resolvedCategory = it
+                source = CategorySource.INTERNET
+                Log.d(TAG, "🌐 Internet resolved $packageName as $resolvedCategory")
+            } ?: run {
+                Log.w(TAG, "🌐 Internet resolution failed for $packageName, caching as OTHER")
+                // We cache OTHER on failure to avoid repeated network attempts
+                source = CategorySource.INTERNET
+            }
+        }
         
-        // Fallback for older APIs
-        return AppCategory.OTHER
+        // 4. Save to Cache
+        // We always save if it's not OTHER, or if we explicitly allowed an internet lookup (even if it failed)
+        if (resolvedCategory != AppCategory.OTHER || allowInternet) {
+            cacheManager.saveCategory(packageName, resolvedCategory, source)
+        }
+
+        return resolvedCategory
     }
 
     /**

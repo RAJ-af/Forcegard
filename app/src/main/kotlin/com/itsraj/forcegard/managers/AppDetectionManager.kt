@@ -8,6 +8,9 @@ import com.itsraj.forcegard.models.AppSessionState
 import com.itsraj.forcegard.utils.AppCategory
 import com.itsraj.forcegard.utils.AppPackages
 import com.itsraj.forcegard.utils.AppScanner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class AppDetectionManager(
     private val context: Context
@@ -29,14 +32,19 @@ class AppDetectionManager(
     }
     
     fun initialize() {
-        Thread {
+        CoroutineScope(Dispatchers.IO).launch {
             try {
+                // Perform a full scan to populate category cache
+                Log.d(TAG, "🔍 Initializing app list and resolving categories...")
+                val apps = appScanner.scanAllApps()
+                Log.d(TAG, "✅ Initialized ${apps.size} apps with categories")
+
                 val count = appPackages.scanAndSavePackages()
                 Log.d(TAG, "✅ Loaded $count monitored apps")
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Failed to scan apps: ${e.message}")
+                Log.e(TAG, "❌ Failed to initialize apps: ${e.message}")
             }
-        }.start()
+        }
     }
     
     fun shouldMonitor(packageName: String): Boolean {
@@ -46,12 +54,25 @@ class AppDetectionManager(
     fun handleAppDetection(packageName: String): AppSessionState {
         val isMonitored = shouldMonitor(packageName)
         
-        // Determine category
-        val category = try {
+        // Determine category (from cache or system)
+        var category = try {
             val appInfo = context.packageManager.getApplicationInfo(packageName, 0)
-            appScanner.categorizeApp(appInfo, packageName)
+            appScanner.categorizeApp(appInfo, packageName, false)
         } catch (e: Exception) {
             AppCategory.OTHER
+        }
+
+        // If still OTHER, trigger background lookup for next time
+        if (isMonitored && category == AppCategory.OTHER) {
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val appInfo = context.packageManager.getApplicationInfo(packageName, 0)
+                    appScanner.categorizeApp(appInfo, packageName, true)
+                    Log.d(TAG, "🌐 Background category lookup completed for $packageName")
+                } catch (e: Exception) {
+                    Log.e(TAG, "❌ Background lookup failed for $packageName: ${e.message}")
+                }
+            }
         }
 
         // Notify foreground change
@@ -98,7 +119,7 @@ class AppDetectionManager(
     fun getAppCategory(packageName: String): AppCategory {
         return try {
             val appInfo = context.packageManager.getApplicationInfo(packageName, 0)
-            appScanner.categorizeApp(appInfo, packageName)
+            appScanner.categorizeApp(appInfo, packageName, false)
         } catch (e: Exception) {
             AppCategory.OTHER
         }
