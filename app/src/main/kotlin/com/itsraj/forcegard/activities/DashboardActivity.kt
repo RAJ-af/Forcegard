@@ -16,6 +16,7 @@ import androidx.cardview.widget.CardView
 import com.itsraj.forcegard.R
 import com.itsraj.forcegard.limits.DailyLimitManager
 import com.itsraj.forcegard.limits.SpendLimitManager
+import com.itsraj.forcegard.managers.PickupManager
 import com.itsraj.forcegard.utils.UsageTimeHelper
 import java.text.SimpleDateFormat
 import java.util.*
@@ -36,12 +37,16 @@ class DashboardActivity : AppCompatActivity() {
     private lateinit var tvServiceStatus: TextView
     private lateinit var tvServiceHelper: TextView
     private lateinit var btnStartProtection: Button
+
+    private lateinit var tvMonitoredApps: TextView
+    private lateinit var tvLockPeriod: TextView
     
     private lateinit var containerMostUsedApps: LinearLayout
     private lateinit var tvNoAppsUsed: TextView
     
     private lateinit var dailyLimitManager: DailyLimitManager
     private lateinit var spendLimitManager: SpendLimitManager
+    private lateinit var pickupManager: PickupManager
     
     companion object {
         private const val TAG = "DashboardActivity"
@@ -53,6 +58,7 @@ class DashboardActivity : AppCompatActivity() {
         
         dailyLimitManager = DailyLimitManager(this)
         spendLimitManager = SpendLimitManager(this)
+        pickupManager = PickupManager(this)
         
         initViews()
         updateUI()
@@ -77,31 +83,18 @@ class DashboardActivity : AppCompatActivity() {
         tvServiceStatus = findViewById(R.id.tvServiceStatus)
         tvServiceHelper = findViewById(R.id.tvServiceHelper)
         btnStartProtection = findViewById(R.id.btnStartProtection)
+
+        tvMonitoredApps = findViewById(R.id.tvMonitoredApps)
+        tvLockPeriod = findViewById(R.id.tvLockPeriod)
         
         containerMostUsedApps = findViewById(R.id.containerMostUsedApps)
         tvNoAppsUsed = findViewById(R.id.tvNoAppsUsed)
         
-        // Set date
         val sdf = SimpleDateFormat("EEEE, MMMM dd", Locale.ENGLISH)
         tvDate.text = sdf.format(Date())
         
-        // Protection button
-        btnStartProtection.setOnClickListener {
-            openAccessibilitySettings()
-        }
-        
-        // Daily limit card - make entire card clickable
-        tvScreenTime.setOnClickListener {
-            openDailyLimitActivity()
-        }
-        
-        tvLimitHelper.setOnClickListener {
-            openDailyLimitActivity()
-        }
-        
-        tvLimitReset.setOnClickListener {
-            openDailyLimitActivity()
-        }
+        btnStartProtection.setOnClickListener { openAccessibilitySettings() }
+        tvScreenTime.setOnClickListener { openDailyLimitActivity() }
     }
 
     private fun updateUI() {
@@ -109,88 +102,77 @@ class DashboardActivity : AppCompatActivity() {
         updateDailyLimitUI()
         updatePickupsAndAverage()
         updateMostUsedApps()
+        updateSystemInfo()
     }
 
     private fun updateProtectionStatus() {
         val isEnabled = isAccessibilityServiceEnabled()
-        
         if (isEnabled) {
             tvServiceStatus.text = "Protection is ACTIVE"
+            tvServiceStatus.setTextColor(getColor(R.color.success_green))
             tvServiceHelper.text = "Your apps are being monitored"
-            btnStartProtection.text = "MANAGE PROTECTION"
-            cardProtection.setCardBackgroundColor(getColor(R.color.success_green))
+            btnStartProtection.visibility = View.GONE
         } else {
-            tvServiceStatus.text = "Accessibility monitoring is OFF"
-            tvServiceHelper.text = "Tap below to enable tracking and enforcement."
+            tvServiceStatus.text = "Monitoring is OFF"
+            tvServiceStatus.setTextColor(getColor(android.R.color.holo_red_dark))
+            tvServiceHelper.text = "Tap below to enable tracking."
+            btnStartProtection.visibility = View.VISIBLE
             btnStartProtection.text = "ENABLE PROTECTION"
-            cardProtection.setCardBackgroundColor(getColor(R.color.card_background))
         }
+        cardProtection.setCardBackgroundColor(getColor(R.color.card_background))
     }
 
     private fun updateDailyLimitUI() {
         val config = dailyLimitManager.getConfig()
-        
         if (config == null || !config.enabled) {
-            // No limit set
             tvScreenTime.text = "No limit"
             tvLimitHelper.text = "Set a spend limit to control usage"
             tvLimitReset.text = "Tap here to set limit"
             return
         }
         
- feature/fix-and-improve-forcegard-logic-16717827945977915065
-        // Use SpendLimitManager as source of truth for spend limit
-        val usedMillis = spendLimitManager.getUsageMillis()
-        val limitMillis = spendLimitManager.getLimitMillis()
-
-        // Get actual usage using new helper
         val usedMillis = UsageTimeHelper.getTodayTotalUsageMillis(this, config.resetHour)
         val limitMillis = config.limitMinutes * 60000L
- main
         
         val usedHours = (usedMillis / 3600000).toInt()
         val usedMinutes = ((usedMillis % 3600000) / 60000).toInt()
-        
- feature/fix-and-improve-forcegard-logic-16717827945977915065
-        val limitHours = (limitMillis / 3600000).toInt()
-        val limitMinutes = ((limitMillis % 3600000) / 60000).toInt()
-
         val limitHours = config.limitMinutes / 60
         val limitMinutes = config.limitMinutes % 60
- main
         
         if (usedMillis >= limitMillis) {
-            // Limit reached
             tvScreenTime.text = "Limit reached"
-            tvLimitHelper.text = "You've used all your time (${limitHours}h ${limitMinutes}m)"
+            tvLimitHelper.text = "Used: ${usedHours}h ${usedMinutes}m"
         } else {
-            // Still time left
             val remainingMillis = limitMillis - usedMillis
             val remainingHours = (remainingMillis / 3600000).toInt()
             val remainingMinutes = ((remainingMillis % 3600000) / 60000).toInt()
-            
             tvScreenTime.text = "${remainingHours}h ${remainingMinutes}m left"
             tvLimitHelper.text = "Used: ${usedHours}h ${usedMinutes}m of ${limitHours}h ${limitMinutes}m"
         }
-        
         val sdf = SimpleDateFormat("EEEE, MMM dd", Locale.getDefault())
         tvLimitReset.text = "Resets on ${sdf.format(spendLimitManager.getNextResetDate())}"
     }
 
     private fun updatePickupsAndAverage() {
-        // Pickups placeholder
-        tvPickups.text = "—"
-        tvPickupsSubtext.text = "Enable protection to track"
+        val pickups = pickupManager.getTodayPickups()
+        tvPickups.text = pickups.toString()
+        tvPickupsSubtext.text = "Pickups today"
+
+        val config = dailyLimitManager.getConfig()
+        val totalUsage = UsageTimeHelper.getTodayTotalUsageMillis(this, config?.resetHour ?: 0)
+        val avgUsage = pickupManager.getDailyAverageUsage(totalUsage)
+
+        val avgMins = (avgUsage / 60000).toInt()
+        val avgHours = avgMins / 60
+        val remainingMins = avgMins % 60
         
-        // Daily average placeholder
-        tvDailyAvg.text = "—"
-        tvDailyAvgSubtext.text = "Appears after few days"
+        tvDailyAvg.text = if (avgHours > 0) "${avgHours}h ${remainingMins}m" else "${remainingMins}m"
+        tvDailyAvgSubtext.text = "Daily average"
     }
 
     private fun updateMostUsedApps() {
         val config = dailyLimitManager.getConfig()
         val resetHour = config?.resetHour ?: 0
-        
         val mostUsedApps = UsageTimeHelper.getMostUsedAppsToday(this, resetHour, 5)
         
         if (mostUsedApps.isEmpty()) {
@@ -203,59 +185,37 @@ class DashboardActivity : AppCompatActivity() {
         containerMostUsedApps.removeAllViews()
         
         mostUsedApps.forEach { appInfo ->
-            val itemView = LayoutInflater.from(this)
-                .inflate(R.layout.item_most_used_app, containerMostUsedApps, false)
-            
-            val tvAppName = itemView.findViewById<TextView>(R.id.tvAppName)
-            val tvAppTime = itemView.findViewById<TextView>(R.id.tvAppTime)
-            val ivAppIcon = itemView.findViewById<ImageView>(R.id.ivAppIcon)
-            
-            tvAppName.text = appInfo.appName
-            
-            // Format time
-            val minutes = (appInfo.totalTimeMillis / 60000).toInt()
-            val hours = minutes / 60
-            val mins = minutes % 60
-            
-            val timeText = when {
-                hours > 0 -> "${hours}h ${mins}m"
-                mins > 0 -> "${mins}m"
-                else -> "< 1m"
-            }
-            tvAppTime.text = timeText
-            
-            // Try to get app icon
+            val itemView = LayoutInflater.from(this).inflate(R.layout.item_most_used_app, containerMostUsedApps, false)
+            itemView.findViewById<TextView>(R.id.tvAppName).text = appInfo.appName
+            val minsTotal = (appInfo.totalTimeMillis / 60000).toInt()
+            itemView.findViewById<TextView>(R.id.tvAppTime).text = if (minsTotal >= 60) "${minsTotal/60}h ${minsTotal%60}m" else "${minsTotal}m"
             try {
-                val icon = packageManager.getApplicationIcon(appInfo.packageName)
-                ivAppIcon.setImageDrawable(icon)
+                itemView.findViewById<ImageView>(R.id.ivAppIcon).setImageDrawable(packageManager.getApplicationIcon(appInfo.packageName))
             } catch (e: Exception) {
-                ivAppIcon.setImageResource(android.R.drawable.ic_menu_gallery)
+                itemView.findViewById<ImageView>(R.id.ivAppIcon).setImageResource(android.R.drawable.ic_menu_gallery)
             }
-            
             containerMostUsedApps.addView(itemView)
         }
     }
 
+    private fun updateSystemInfo() {
+        // Placeholder for monitored apps and lock period
+        tvMonitoredApps.text = "Social & Games"
+        val config = dailyLimitManager.getConfig()
+        tvLockPeriod.text = if (config?.enabled == true) "${config.limitMinutes}m/day" else "Not set"
+    }
+
     private fun openDailyLimitActivity() {
-        val intent = Intent(this, DailyLimitActivity::class.java)
-        startActivity(intent)
+        startActivity(Intent(this, DailyLimitActivity::class.java))
     }
 
     private fun openAccessibilitySettings() {
-        try {
-            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            startActivity(intent)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error opening accessibility settings: ${e.message}")
-        }
+        try { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) } catch (_: Exception) {}
     }
 
     private fun isAccessibilityServiceEnabled(): Boolean {
         val serviceName = "${packageName}/com.itsraj.forcegard.services.ForcegardAccessibilityService"
-        val enabledServices = Settings.Secure.getString(
-            contentResolver,
-            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-        )
+        val enabledServices = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
         return enabledServices?.contains(serviceName) == true
     }
 }

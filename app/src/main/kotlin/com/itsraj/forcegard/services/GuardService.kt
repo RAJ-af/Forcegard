@@ -1,27 +1,42 @@
 package com.itsraj.forcegard.services
 
 import android.app.*
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
 import androidx.core.app.NotificationCompat
-import com.itsraj.forcegard.limits.SpendLimitManager
+import com.itsraj.forcegard.managers.PickupManager
 
 class GuardService : Service() {
 
-    private lateinit var spendLimitManager: SpendLimitManager
-    private val handler = Handler(Looper.getMainLooper())
+    private lateinit var pickupManager: PickupManager
     private val CHANNEL_ID = "guard_service_channel"
+
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == Intent.ACTION_SCREEN_ON) {
+                pickupManager.recordPickup()
+            }
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
-        spendLimitManager = SpendLimitManager(this)
+        pickupManager = PickupManager(this)
         createNotificationChannel()
-        val notification = createNotification()
-        startForeground(1, notification)
+        startForeground(1, createNotification())
+
+        val filter = IntentFilter()
+        filter.addAction(Intent.ACTION_SCREEN_ON)
+        registerReceiver(screenReceiver, filter)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(screenReceiver)
     }
 
     private fun createNotification(): Notification {

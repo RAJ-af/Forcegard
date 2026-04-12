@@ -1,4 +1,3 @@
-// managers/OverlayManager.kt
 package com.itsraj.forcegard.managers
 
 import android.content.Context
@@ -14,308 +13,165 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
 import com.itsraj.forcegard.R
+import java.util.*
 
 class OverlayManager(private val context: Context) {
-    
+
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val handler = Handler(Looper.getMainLooper())
     
     private var currentOverlay: View? = null
     private var currentTimer: CountDownTimer? = null
-    
-    private val timerPills = mutableMapOf<String, View>()
-    
     private var isTransitioning = false
     
+    private val timerPills = mutableMapOf<String, View>()
     private val listeners = mutableListOf<OverlayEventListener>()
-    
+
     companion object {
         private const val TAG = "OverlayManager"
     }
-    
+
     interface OverlayEventListener {
         fun onConfirmationYes(packageName: String)
         fun onConfirmationNo(packageName: String)
         fun onTimeSelected(packageName: String, minutes: Int)
+        fun onCloseAppRequested()
         fun onExitConfirmed(packageName: String)
         fun onExitCancelled(packageName: String)
-        fun onCloseAppRequested()
     }
-    
-    enum class OverlayType {
-        CONFIRMATION,
-        TIME_SELECTION,
-        TIME_FINISHED,
-        COOLDOWN_LOCK,
-        TIMER_PILL
-    }
-    
+
     fun isOverlayVisible(): Boolean = currentOverlay != null
-    
-    fun isTransitioning(): Boolean = isTransitioning
-    
-    // ========== CONFIRMATION POPUP ==========
-    
+
     fun showConfirmationPopup(packageName: String) {
-        if (isOverlayVisible()) {
-            Log.w(TAG, "⚠️ Overlay already visible, skipping")
-            return
-        }
-        
+        if (isTransitioning) return
         removeCurrentOverlay()
         
         try {
-            val view = LayoutInflater.from(context)
-                .inflate(R.layout.overlay_mindfulness_main, null)
-            
+            val view = LayoutInflater.from(context).inflate(R.layout.overlay_exit_confirmation, null)
             val params = createFullScreenParams()
             
-            val btnYes = view.findViewById<Button>(R.id.btn_yes_need)
-            val btnNo = view.findViewById<Button>(R.id.btn_no_need)
+            val tvAppName = view.findViewById<TextView>(R.id.tvExitAppName)
+            view.findViewById<TextView>(R.id.tvTimeRemaining).visibility = View.GONE
             
-            view.findViewById<Button>(R.id.btn_exploring)?.visibility = View.GONE
-            
-            btnYes.setOnClickListener {
-                Log.d(TAG, "✅ YES clicked: $packageName")
-                isTransitioning = true
-                btnYes.isEnabled = false
-                btnNo.isEnabled = false
-                
-                removeCurrentOverlay()
-                notifyConfirmationYes(packageName)
+            try {
+                val pm = context.packageManager
+                val label = pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0))
+                tvAppName.text = "Open $label?"
+            } catch (_: Exception) {
+                tvAppName.text = "Open this app?"
             }
             
-            btnNo.setOnClickListener {
-                Log.d(TAG, "❌ NO clicked: $packageName")
-                isTransitioning = true
-                btnYes.isEnabled = false
-                btnNo.isEnabled = false
-                
-                removeCurrentOverlay()
-                notifyConfirmationNo(packageName)
+            view.findViewById<TextView>(R.id.btnYesCloseApp).apply {
+                text = "No" // Swapped text to match intent
+                setOnClickListener {
+                    isTransitioning = true
+                    removeCurrentOverlay()
+                    notifyConfirmationNo(packageName)
+                }
+            }
+            
+            view.findViewById<TextView>(R.id.btnNoKeepRunning).apply {
+                text = "Yes"
+                setOnClickListener {
+                    isTransitioning = true
+                    removeCurrentOverlay()
+                    notifyConfirmationYes(packageName)
+                }
             }
             
             windowManager.addView(view, params)
             currentOverlay = view
-            
-            Log.d(TAG, "🔔 Confirmation popup shown for: $packageName")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Failed to show confirmation: ${e.message}", e)
+            Log.e(TAG, "Error showing confirmation: ${e.message}")
         }
     }
-    
-    // ========== TIME SELECTION POPUP ==========
-    
-    fun showTimeSelectionPopup(packageName: String, onComplete: () -> Unit = {}) {
-        handler.postDelayed({
-            if (isOverlayVisible()) {
-                showTimeSelectionPopup(packageName, onComplete)
-                return@postDelayed
-            }
+
+    fun showTimeSelectionPopup(packageName: String, onDismiss: () -> Unit) {
+        removeCurrentOverlay()
+        try {
+            val view = LayoutInflater.from(context).inflate(R.layout.overlay_time_selection, null)
+            val params = createFullScreenParams()
             
-            removeCurrentOverlay()
-            
-            try {
-                val view = LayoutInflater.from(context)
-                    .inflate(R.layout.overlay_time_selection, null)
-                
-                val params = createFullScreenParams()
-                
-                val btn5 = view.findViewById<Button>(R.id.btn_5min)
-                val btn10 = view.findViewById<Button>(R.id.btn_10min)
-                val btn20 = view.findViewById<Button>(R.id.btn_20min)
-                val btnCustom = view.findViewById<Button>(R.id.btn_custom)
-                
-                val clickListener = View.OnClickListener { btn ->
-                    val minutes = when (btn.id) {
-                        R.id.btn_5min -> 5
-                        R.id.btn_10min -> 10
-                        R.id.btn_20min -> 20
-                        R.id.btn_custom -> 15
-                        else -> 5
-                    }
-                    
-                    Log.d(TAG, "⏱️ Time selected: $minutes min")
-                    
-                    btn5.isEnabled = false
-                    btn10.isEnabled = false
-                    btn20.isEnabled = false
-                    btnCustom.isEnabled = false
-                    
-                    removeCurrentOverlay()
-                    notifyTimeSelected(packageName, minutes)
-                    onComplete()
-                }
-                
-                btn5.setOnClickListener(clickListener)
-                btn10.setOnClickListener(clickListener)
-                btn20.setOnClickListener(clickListener)
-                btnCustom.setOnClickListener(clickListener)
-                
-                windowManager.addView(view, params)
-                currentOverlay = view
-                
-                isTransitioning = false
-                Log.d(TAG, "⏱️ Time selection shown for: $packageName")
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Failed to show time selection: ${e.message}", e)
-                isTransitioning = false
+            view.findViewById<Button>(R.id.btn_5min).setOnClickListener {
+                removeCurrentOverlay()
+                notifyTimeSelected(packageName, 5)
             }
-        }, 500)
+            view.findViewById<Button>(R.id.btn_10min).setOnClickListener {
+                removeCurrentOverlay()
+                notifyTimeSelected(packageName, 10)
+            }
+            view.findViewById<Button>(R.id.btn_20min).setOnClickListener {
+                removeCurrentOverlay()
+                notifyTimeSelected(packageName, 20)
+            }
+            view.findViewById<Button>(R.id.btn_custom).setOnClickListener {
+                removeCurrentOverlay()
+                notifyTimeSelected(packageName, 15) // Default custom to 15 for now
+            }
+
+            windowManager.addView(view, params)
+            currentOverlay = view
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing time selection: ${e.message}")
+            onDismiss()
+        }
     }
-    
-    // ========== TIMER PILL ==========
-    
+
     fun showOrUpdateTimerPill(packageName: String, minutes: Int, seconds: Int) {
         val timeText = String.format("%02d:%02d", minutes, seconds)
+        val existingPill = timerPills[packageName]
         
-        // Update existing pill
-        timerPills[packageName]?.let { pill ->
-            pill.findViewById<TextView>(R.id.tvTimerDisplay)?.text = timeText
+        if (existingPill != null) {
+            existingPill.findViewById<TextView>(R.id.tvTimerDisplay).text = timeText
             return
         }
         
-        // Create new pill
         try {
-            val view = LayoutInflater.from(context)
-                .inflate(R.layout.overlay_active_timer, null)
-            
+            val view = LayoutInflater.from(context).inflate(R.layout.overlay_active_timer, null)
             val params = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                         WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                         WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                 PixelFormat.TRANSLUCENT
-            )
-            params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            params.y = 50
+            ).apply {
+                gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                y = 100
+            }
             
             view.findViewById<TextView>(R.id.tvTimerDisplay).text = timeText
-            
             windowManager.addView(view, params)
             timerPills[packageName] = view
-            
-            Log.d(TAG, "⏱️ Timer pill created: $packageName ($timeText)")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Failed to create timer pill: ${e.message}")
+            Log.e(TAG, "Error showing timer pill: ${e.message}")
         }
     }
-    
+
     fun removeTimerPill(packageName: String) {
-        timerPills.remove(packageName)?.let { pill ->
-            try {
-                windowManager.removeView(pill)
-                Log.d(TAG, "🗑️ Timer pill removed: $packageName")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to remove timer pill: ${e.message}")
-            }
+        timerPills.remove(packageName)?.let {
+            try { windowManager.removeView(it) } catch (_: Exception) {}
         }
     }
-    
+
     fun hideAllTimerPills() {
-        timerPills.forEach { (packageName, view) ->
-            try {
-                windowManager.removeView(view)
-            } catch (_: Exception) {}
+        timerPills.forEach { (_, view) ->
+            try { windowManager.removeView(view) } catch (_: Exception) {}
         }
         timerPills.clear()
-        Log.d(TAG, "🙈 All timer pills hidden")
     }
 
-    // ========== EXIT CONFIRMATION POPUP ==========
-
-fun showExitConfirmationPopup(
-    packageName: String, 
-    remainingMinutes: Int, 
-    remainingSeconds: Int
-) {
-    removeCurrentOverlay()
-    
-    try {
-        val view = LayoutInflater.from(context)
-            .inflate(R.layout.overlay_exit_confirmation, null)
-        
-        val params = createFullScreenParams()
-        
-        val tvAppName = view.findViewById<TextView>(R.id.tvExitAppName)
-        val tvTimeRemaining = view.findViewById<TextView>(R.id.tvTimeRemaining)
-        val btnYesClose = view.findViewById<TextView>(R.id.btnYesCloseApp)
-        val btnNoKeep = view.findViewById<TextView>(R.id.btnNoKeepRunning)
-        
-        // Set app name
-        try {
-            val pm = context.packageManager
-            val label = pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0))
-            tvAppName.text = "Close $label?"
-        } catch (_: Exception) {
-            tvAppName.text = "Close this app?"
-        }
-
-        // Show remaining time
-        val timeText = String.format("%02d:%02d remaining", remainingMinutes, remainingSeconds)
-        tvTimeRemaining.text = timeText
-        
-        btnYesClose.setOnClickListener {
-            Log.d(TAG, "✅ User confirmed app exit: $packageName")
-            removeCurrentOverlay()
-            notifyExitConfirmed(packageName)
-        }
-        
-        btnNoKeep.setOnClickListener {
-            Log.d(TAG, "❌ User cancelled app exit: $packageName")
-            removeCurrentOverlay()
-            notifyExitCancelled(packageName)
-        }
-        
-        windowManager.addView(view, params)
-        currentOverlay = view
-        
-        Log.d(TAG, "🚪 Exit confirmation shown for: $packageName")
-    } catch (e: Exception) {
-        Log.e(TAG, "❌ Failed to show exit confirmation: ${e.message}", e)
-    }
-}
-
-    
-     private fun notifyExitConfirmed(packageName: String) {
-    listeners.forEach { it.onExitConfirmed(packageName) }
-}
-
-private fun notifyExitCancelled(packageName: String) {
-    listeners.forEach { it.onExitCancelled(packageName) }
-}
-
-    // ========== TIME FINISHED POPUP ==========
-    
     fun showTimeFinishedPopup(packageName: String) {
         removeCurrentOverlay()
-        
         try {
-            val view = LayoutInflater.from(context)
-                .inflate(R.layout.overlay_cooldown_lock, null)
-            
+            val view = LayoutInflater.from(context).inflate(R.layout.overlay_cooldown_lock, null)
             val params = createFullScreenParams()
-            
-            val tvAppName = view.findViewById<TextView>(R.id.tvCooldownAppName)
-            val tvTimer = view.findViewById<TextView>(R.id.tvCooldownTimer)
-            val btnCloseApp = view.findViewById<TextView>(R.id.btnCloseApp)
             
             view.findViewById<Button>(R.id.btnReuseAfter)?.visibility = View.GONE
             view.findViewById<TextView>(R.id.tvAutoCloseCountdown)?.visibility = View.GONE
             
-            try {
-                val pm = context.packageManager
-                val label = pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0))
-                tvAppName.text = "Time finished for $label"
-            } catch (_: Exception) {
-                tvAppName.text = "Your time is finished"
-            }
-            
-            tvTimer.text = "00:00"
-            
-            btnCloseApp.setOnClickListener {
+            view.findViewById<TextView>(R.id.btnCloseApp).setOnClickListener {
                 removeCurrentOverlay()
                 notifyCloseAppRequested()
             }
@@ -327,29 +183,20 @@ private fun notifyExitCancelled(packageName: String) {
             
             windowManager.addView(view, params)
             currentOverlay = view
-            
-            Log.d(TAG, "⏰ Time finished popup shown")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Failed to show time finished: ${e.message}", e)
+            Log.e(TAG, "Error showing time finished: ${e.message}")
         }
     }
-    
-    // ========== COOLDOWN LOCK POPUP ==========
-    
+
     fun showCooldownLockPopup(packageName: String, cooldownMs: Long) {
         removeCurrentOverlay()
-        
         try {
-            val view = LayoutInflater.from(context)
-                .inflate(R.layout.overlay_cooldown_lock, null)
-            
+            val view = LayoutInflater.from(context).inflate(R.layout.overlay_cooldown_lock, null)
             val params = createFullScreenParams()
             
             val tvAppName = view.findViewById<TextView>(R.id.tvCooldownAppName)
             val tvTimer = view.findViewById<TextView>(R.id.tvCooldownTimer)
             val btnReuseAfter = view.findViewById<Button>(R.id.btnReuseAfter)
-            val btnCloseApp = view.findViewById<TextView>(R.id.btnCloseApp)
-            val tvAutoClose = view.findViewById<TextView>(R.id.tvAutoCloseCountdown)
             
             try {
                 val pm = context.packageManager
@@ -359,7 +206,6 @@ private fun notifyExitCancelled(packageName: String) {
                 tvAppName.text = "This app"
             }
             
-            val totalSeconds = (cooldownMs / 1000).toInt()
             currentTimer = object : CountDownTimer(cooldownMs, 1000) {
                 override fun onTick(millisUntilFinished: Long) {
                     val sec = (millisUntilFinished / 1000).toInt()
@@ -367,34 +213,27 @@ private fun notifyExitCancelled(packageName: String) {
                     val s = sec % 60
                     val timeStr = String.format("%02d:%02d", m, s)
                     tvTimer.text = timeStr
-                    btnReuseAfter.text = "Reuse after $timeStr"
-                    
-                    val autoCloseSec = sec.coerceAtMost(5)
-                    tvAutoClose.text = "Closing in ${autoCloseSec}s..."
+                    btnReuseAfter?.text = "Reuse after $timeStr"
+                    view.findViewById<TextView>(R.id.tvAutoCloseCountdown)?.text = "Closing in ${sec.coerceAtMost(5)}s..."
                 }
-                
                 override fun onFinish() {
                     removeCurrentOverlay()
                     notifyCloseAppRequested()
                 }
             }.start()
             
-            btnCloseApp.setOnClickListener {
+            view.findViewById<TextView>(R.id.btnCloseApp).setOnClickListener {
                 removeCurrentOverlay()
                 notifyCloseAppRequested()
             }
             
             windowManager.addView(view, params)
             currentOverlay = view
-            
-            Log.d(TAG, "🔒 Cooldown lock shown: ${totalSeconds}s")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Failed to show cooldown lock: ${e.message}", e)
+            Log.e(TAG, "Error showing cooldown: ${e.message}")
         }
     }
-    
-    // ========== UTILITIES ==========
-    
+
     private fun createFullScreenParams(): WindowManager.LayoutParams {
         return WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -406,56 +245,28 @@ private fun notifyExitCancelled(packageName: String) {
             PixelFormat.TRANSLUCENT
         )
     }
-    
+
     fun removeCurrentOverlay() {
         currentOverlay?.let {
-            try {
-                windowManager.removeView(it)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to remove overlay: ${e.message}")
-            }
+            try { windowManager.removeView(it) } catch (_: Exception) {}
         }
         currentOverlay = null
-        
         currentTimer?.cancel()
         currentTimer = null
     }
-    
-    fun clearTransitioning() {
-        isTransitioning = false
-    }
-    
+
+    fun clearTransitioning() { isTransitioning = false }
+
     fun cleanupAll() {
         removeCurrentOverlay()
-        timerPills.values.forEach { pill ->
-            try { windowManager.removeView(pill) } catch (_: Exception) {}
-        }
-        timerPills.clear()
+        hideAllTimerPills()
     }
-    
-    // ========== LISTENERS ==========
-    
-    fun addListener(listener: OverlayEventListener) {
-        listeners.add(listener)
-    }
-    
-    fun removeListener(listener: OverlayEventListener) {
-        listeners.remove(listener)
-    }
-    
-    private fun notifyConfirmationYes(packageName: String) {
-        listeners.forEach { it.onConfirmationYes(packageName) }
-    }
-    
-    private fun notifyConfirmationNo(packageName: String) {
-        listeners.forEach { it.onConfirmationNo(packageName) }
-    }
-    
-    private fun notifyTimeSelected(packageName: String, minutes: Int) {
-        listeners.forEach { it.onTimeSelected(packageName, minutes) }
-    }
-    
-    private fun notifyCloseAppRequested() {
-        listeners.forEach { it.onCloseAppRequested() }
-    }
+
+    fun addListener(listener: OverlayEventListener) { listeners.add(listener) }
+    fun removeListener(listener: OverlayEventListener) { listeners.remove(listener) }
+
+    private fun notifyConfirmationYes(packageName: String) { listeners.forEach { it.onConfirmationYes(packageName) } }
+    private fun notifyConfirmationNo(packageName: String) { listeners.forEach { it.onConfirmationNo(packageName) } }
+    private fun notifyTimeSelected(packageName: String, minutes: Int) { listeners.forEach { it.onTimeSelected(packageName, minutes) } }
+    private fun notifyCloseAppRequested() { listeners.forEach { it.onCloseAppRequested() } }
 }
