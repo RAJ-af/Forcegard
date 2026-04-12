@@ -30,11 +30,12 @@ class CooldownManager(private val context: Context) {
         listeners.remove(listener)
     }
 
-    fun startCooldown(packageName: String, reason: CooldownReason) {
-        val duration = when(reason) {
-            CooldownReason.USER_REJECTED -> 5 * 60 * 1000L // 5 mins
-            CooldownReason.TIMER_EXPIRED -> 15 * 60 * 1000L // 15 mins
+    fun startCooldown(packageName: String, reason: CooldownReason, customDurationMs: Long? = null) {
+        val duration = customDurationMs ?: when(reason) {
+            CooldownReason.USER_REJECTED -> 5 * 60 * 1000L // Default 5 mins for rejection
+            CooldownReason.TIMER_EXPIRED -> 15 * 60 * 1000L // Default 15 mins
         }
+
         val endTime = System.currentTimeMillis() + duration
         prefs.edit().putLong(KEY_PREFIX + packageName, endTime).apply()
 

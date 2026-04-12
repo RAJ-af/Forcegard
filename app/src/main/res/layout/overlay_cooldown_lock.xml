@@ -50,7 +50,7 @@
              android:textSize="17sp"
              android:textColor="#FFFFFF"
              android:layout_gravity="center"
-             android:text="Wait 5 minutes to continue" />
+             android:id="@+id/tvWaitMessage" android:text="Please wait to continue" />
 
         <TextView
              android:layout_height="wrap_content"
