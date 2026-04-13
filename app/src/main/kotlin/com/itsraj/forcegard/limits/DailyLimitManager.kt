@@ -3,6 +3,7 @@ package com.itsraj.forcegard.limits
 import android.content.Context
 import android.content.SharedPreferences
 import com.itsraj.forcegard.utils.UsageTimeHelper
+import java.util.Calendar
 
 class DailyLimitManager(private val context: Context) {
 
@@ -46,19 +47,16 @@ class DailyLimitManager(private val context: Context) {
     fun getTodayWindow(): Pair<Long, Long> {
         val config = getConfig() ?: return Pair(0L, 0L)
         val now = System.currentTimeMillis()
+        val calendar = Calendar.getInstance()
 
-        var startTime = when (config.planDays) {
-            1 -> UsageTimeHelper.getStartOfToday()
-            7 -> UsageTimeHelper.getStartOfWeek()
-            30 -> UsageTimeHelper.getStartOfMonth()
-            else -> UsageTimeHelper.getStartOfToday()
-        }
+        calendar.set(Calendar.HOUR_OF_DAY, config.resetHour)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
 
-        if (config.planDays == 1 && config.resetHour > 0) {
-            startTime += config.resetHour.toLong() * 60 * 60 * 1000L
-            if (startTime > now) {
-                startTime -= 24 * 60 * 60 * 1000L
-            }
+        var startTime = calendar.timeInMillis
+        if (startTime > now) {
+            startTime -= 24 * 60 * 60 * 1000L
         }
 
         return Pair(startTime, now)

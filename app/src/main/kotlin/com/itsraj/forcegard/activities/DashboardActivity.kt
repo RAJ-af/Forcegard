@@ -99,7 +99,7 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun updateUI() {
         updateProtectionStatus()
-        updateDailyLimitUI()
+        updateUsageStats()
         updatePickupsAndAverage()
         updateMostUsedApps()
         updateSystemInfo()
@@ -122,52 +122,41 @@ class DashboardActivity : AppCompatActivity() {
         cardProtection.setCardBackgroundColor(getColor(R.color.card_background))
     }
 
-    private fun updateDailyLimitUI() {
+    private fun updateUsageStats() {
         val config = dailyLimitManager.getConfig()
-        if (config == null || !config.enabled) {
-            tvScreenTime.text = "No limit"
-            tvLimitHelper.text = "Set a spend limit to control usage"
-            tvLimitReset.text = "Tap here to set limit"
-            return
-        }
+        val resetHour = config?.resetHour ?: 0
         
-        val usedMillis = UsageTimeHelper.getTodayTotalUsageMillis(this, config.resetHour)
-        val limitMillis = config.limitMinutes * 60000L
+        // REAL USAGE FROM USAGESTATS
+        val usedMillis = UsageTimeHelper.getTodayTotalUsageMillis(this, resetHour)
         
         val usedHours = (usedMillis / 3600000).toInt()
         val usedMinutes = ((usedMillis % 3600000) / 60000).toInt()
-        val limitHours = config.limitMinutes / 60
-        val limitMinutes = config.limitMinutes % 60
         
-        if (usedMillis >= limitMillis) {
-            tvScreenTime.text = "Limit reached"
-            tvLimitHelper.text = "Used: ${usedHours}h ${usedMinutes}m"
+        tvScreenTime.text = if (usedHours > 0) "${usedHours}h ${usedMinutes}m" else "${usedMinutes}m"
+        tvLimitHelper.text = "Total screen time today"
+
+        if (config?.enabled == true) {
+            val limitMillis = config.limitMinutes * 60000L
+            tvLimitReset.text = "Limit: ${config.limitMinutes}m | Resets at 12 AM"
         } else {
-            val remainingMillis = limitMillis - usedMillis
-            val remainingHours = (remainingMillis / 3600000).toInt()
-            val remainingMinutes = ((remainingMillis % 3600000) / 60000).toInt()
-            tvScreenTime.text = "${remainingHours}h ${remainingMinutes}m left"
-            tvLimitHelper.text = "Used: ${usedHours}h ${usedMinutes}m of ${limitHours}h ${limitMinutes}m"
+            tvLimitReset.text = "No spend limit set"
         }
-        val sdf = SimpleDateFormat("EEEE, MMM dd", Locale.getDefault())
-        tvLimitReset.text = "Resets on ${sdf.format(spendLimitManager.getNextResetDate())}"
     }
 
     private fun updatePickupsAndAverage() {
+        // REAL PICKUPS FROM PICKUPMANAGER
         val pickups = pickupManager.getTodayPickups()
         tvPickups.text = pickups.toString()
-        tvPickupsSubtext.text = "Pickups today"
+        tvPickupsSubtext.text = "App Pickups today"
 
-        val config = dailyLimitManager.getConfig()
-        val totalUsage = UsageTimeHelper.getTodayTotalUsageMillis(this, config?.resetHour ?: 0)
-        val avgUsage = pickupManager.getDailyAverageUsage(totalUsage)
-
+        // REAL 7-DAY AVERAGE FROM USAGESTATS
+        val avgUsage = UsageTimeHelper.getSevenDayAverageMillis(this)
         val avgMins = (avgUsage / 60000).toInt()
         val avgHours = avgMins / 60
         val remainingMins = avgMins % 60
         
         tvDailyAvg.text = if (avgHours > 0) "${avgHours}h ${remainingMins}m" else "${remainingMins}m"
-        tvDailyAvgSubtext.text = "Daily average"
+        tvDailyAvgSubtext.text = "7-day daily average"
     }
 
     private fun updateMostUsedApps() {
@@ -199,10 +188,9 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     private fun updateSystemInfo() {
-        // Placeholder for monitored apps and lock period
         tvMonitoredApps.text = "Social & Games"
         val config = dailyLimitManager.getConfig()
-        tvLockPeriod.text = if (config?.enabled == true) "${config.limitMinutes}m/day" else "Not set"
+        tvLockPeriod.text = "Lock = Usage + 1m"
     }
 
     private fun openDailyLimitActivity() {

@@ -1,18 +1,20 @@
 # ForceGuard Project Progress
 
 ## Current Status
-- Task completed and verified via successful build.
+- Completed core fix of Overlay system and Usage tracking.
 
 ## Done
 - Created PROJECT_PROGRESS.md.
-- Cleaned up merge conflicts and messy code.
-- Implemented Dynamic Cooldown: Lock Time = Usage Time × 2 (Min 5m, Max 60m).
-- Fixed Dashboard UI Stats: Usage time, Pickups, Daily Average, Most Used Apps.
-- Implemented Pickup tracking via GuardService.
-- Redesigned Service Status UI: Replaced full green card with subtle text indicator.
-- Removed/Hidden "Manage Service" button when active to prevent disabling.
-- Updated System Info section on Dashboard.
-- Verified build and logic consistency.
+- Implemented New Cooldown Rule: Lock Time = Selected Time + 1 minute.
+- Fixed Overlay triggering: Reliability improved via direct Accessibility events.
+- Fixed Overlay Blocking: Overlay now correctly shows when app is opened during cooldown.
+- Implemented Hybrid Usage Tracking: UsageStatsManager for historical data, Accessibility for real-time pickups.
+- Fixed Dashboard Stats: REAL Usage, REAL Pickups, and REAL 7-day Average.
+- UI/UX: Subtler protection indicator, hidden management button when active.
+- Accurate System Info: Displays "Lock = Usage + 1m".
+
+## In Progress
+- Final verification.
 
 ## Pending
 - N/A
