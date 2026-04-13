@@ -50,30 +50,20 @@ class OverlayManager(private val context: Context) {
             val view = LayoutInflater.from(context).inflate(R.layout.overlay_exit_confirmation, null)
             val params = createFullScreenParams()
             
-            val tvAppName = view.findViewById<TextView>(R.id.tvExitAppName)
+            view.findViewById<TextView>(R.id.tvExitAppName).text = "Start session?"
             view.findViewById<TextView>(R.id.tvTimeRemaining).visibility = View.GONE
             
-            try {
-                val pm = context.packageManager
-                val label = pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0))
-                tvAppName.text = "Open $label?"
-            } catch (_: Exception) {
-                tvAppName.text = "Open this app?"
-            }
-            
             view.findViewById<TextView>(R.id.btnYesCloseApp).apply {
-                text = "No" // Swapped text to match intent
+                text = "NO"
                 setOnClickListener {
-                    isTransitioning = true
                     removeCurrentOverlay()
                     notifyConfirmationNo(packageName)
                 }
             }
             
             view.findViewById<TextView>(R.id.btnNoKeepRunning).apply {
-                text = "Yes"
+                text = "YES"
                 setOnClickListener {
-                    isTransitioning = true
                     removeCurrentOverlay()
                     notifyConfirmationYes(packageName)
                 }
@@ -82,7 +72,7 @@ class OverlayManager(private val context: Context) {
             windowManager.addView(view, params)
             currentOverlay = view
         } catch (e: Exception) {
-            Log.e(TAG, "Error showing confirmation: ${e.message}")
+            Log.e(TAG, "Error: ${e.message}")
         }
     }
 
@@ -106,13 +96,12 @@ class OverlayManager(private val context: Context) {
             }
             view.findViewById<Button>(R.id.btn_custom).setOnClickListener {
                 removeCurrentOverlay()
-                notifyTimeSelected(packageName, 15) // Default custom to 15 for now
+                notifyTimeSelected(packageName, 1) // Using 1 for quick testing if needed
             }
 
             windowManager.addView(view, params)
             currentOverlay = view
         } catch (e: Exception) {
-            Log.e(TAG, "Error showing time selection: ${e.message}")
             onDismiss()
         }
     }
@@ -144,9 +133,7 @@ class OverlayManager(private val context: Context) {
             view.findViewById<TextView>(R.id.tvTimerDisplay).text = timeText
             windowManager.addView(view, params)
             timerPills[packageName] = view
-        } catch (e: Exception) {
-            Log.e(TAG, "Error showing timer pill: ${e.message}")
-        }
+        } catch (e: Exception) {}
     }
 
     fun removeTimerPill(packageName: String) {
@@ -168,8 +155,9 @@ class OverlayManager(private val context: Context) {
             val view = LayoutInflater.from(context).inflate(R.layout.overlay_cooldown_lock, null)
             val params = createFullScreenParams()
             
+            view.findViewById<TextView>(R.id.tvCooldownAppName).text = "Time is finished!"
             view.findViewById<Button>(R.id.btnReuseAfter)?.visibility = View.GONE
-            view.findViewById<TextView>(R.id.tvAutoCloseCountdown)?.visibility = View.GONE
+            view.findViewById<TextView>(R.id.tvAutoCloseCountdown)?.text = "Redirecting home..."
             
             view.findViewById<TextView>(R.id.btnCloseApp).setOnClickListener {
                 removeCurrentOverlay()
@@ -179,13 +167,11 @@ class OverlayManager(private val context: Context) {
             handler.postDelayed({
                 removeCurrentOverlay()
                 notifyCloseAppRequested()
-            }, 3000)
+            }, 2500)
             
             windowManager.addView(view, params)
             currentOverlay = view
-        } catch (e: Exception) {
-            Log.e(TAG, "Error showing time finished: ${e.message}")
-        }
+        } catch (e: Exception) {}
     }
 
     fun showCooldownLockPopup(packageName: String, cooldownMs: Long) {
@@ -194,17 +180,8 @@ class OverlayManager(private val context: Context) {
             val view = LayoutInflater.from(context).inflate(R.layout.overlay_cooldown_lock, null)
             val params = createFullScreenParams()
             
-            val tvAppName = view.findViewById<TextView>(R.id.tvCooldownAppName)
             val tvTimer = view.findViewById<TextView>(R.id.tvCooldownTimer)
             val btnReuseAfter = view.findViewById<Button>(R.id.btnReuseAfter)
-            
-            try {
-                val pm = context.packageManager
-                val label = pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0))
-                tvAppName.text = label.toString()
-            } catch (_: Exception) {
-                tvAppName.text = "This app"
-            }
             
             currentTimer = object : CountDownTimer(cooldownMs, 1000) {
                 override fun onTick(millisUntilFinished: Long) {
@@ -213,8 +190,7 @@ class OverlayManager(private val context: Context) {
                     val s = sec % 60
                     val timeStr = String.format("%02d:%02d", m, s)
                     tvTimer.text = timeStr
-                    btnReuseAfter?.text = "Reuse after $timeStr"
-                    view.findViewById<TextView>(R.id.tvAutoCloseCountdown)?.text = "Closing in ${sec.coerceAtMost(5)}s..."
+                    btnReuseAfter?.text = "LOCKED: $timeStr"
                 }
                 override fun onFinish() {
                     removeCurrentOverlay()
@@ -229,9 +205,7 @@ class OverlayManager(private val context: Context) {
             
             windowManager.addView(view, params)
             currentOverlay = view
-        } catch (e: Exception) {
-            Log.e(TAG, "Error showing cooldown: ${e.message}")
-        }
+        } catch (e: Exception) {}
     }
 
     private fun createFullScreenParams(): WindowManager.LayoutParams {
@@ -241,7 +215,8 @@ class OverlayManager(private val context: Context) {
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                     WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
             PixelFormat.TRANSLUCENT
         )
     }

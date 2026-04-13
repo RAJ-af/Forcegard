@@ -85,12 +85,15 @@ class ForcegardAccessibilityService : AccessibilityService(),
     }
 
     override fun onForegroundAppChanged(packageName: String, source: String) {
+        Log.v(TAG, "Foreground changed to: $packageName (Source: $source)")
+
         spendLimitManager.updateForegroundApp(packageName)
 
         if (!timerManager.hasActiveTimer(packageName)) {
             overlayManager.hideAllTimerPills()
         }
         
+        // CHECK 1: Global Spend Limit
         if (spendLimitManager.isLimitReached()) {
             if (!AllowedAppsManager.isAllowedWhenLimited(packageName)) {
                 showDailyLimitOverlay()
@@ -100,26 +103,39 @@ class ForcegardAccessibilityService : AccessibilityService(),
             removeDailyLimitOverlay()
         }
         
+        // CHECK 2: Monitored App Logic
         val appState = appDetectionManager.handleAppDetection(packageName)
         if (!appState.isMonitored) return
+
+        // Record Pickup for monitored apps
+        pickupManager.recordPickup()
         
+        // CHECK 3: Cooldown Lock (BLOCKING)
         if (cooldownManager.isInCooldown(packageName)) {
-            val remainingMs = cooldownManager.getRemainingCooldownTime(packageName) ?: return
-            overlayManager.showCooldownLockPopup(packageName, remainingMs)
-            return
+            val remainingMs = cooldownManager.getRemainingCooldownTime(packageName)
+            if (remainingMs != null) {
+                Log.i(TAG, "🔒 Blocking $packageName - In Cooldown (${remainingMs/1000}s left)")
+                overlayManager.showCooldownLockPopup(packageName, remainingMs)
+                return
+            }
         }
         
+        // CHECK 4: Active Timer (CONTINUING SESSION)
         if (timerManager.hasActiveTimer(packageName)) {
-            val remainingMs = timerManager.getRemainingTime(packageName) ?: return
-            val remainingSeconds = (remainingMs / 1000).toInt()
-            val minutes = remainingSeconds / 60
-            val seconds = remainingSeconds % 60
-            overlayManager.showOrUpdateTimerPill(packageName, minutes, seconds)
-            return
+            val remainingMs = timerManager.getRemainingTime(packageName)
+            if (remainingMs != null) {
+                val remainingSeconds = (remainingMs / 1000).toInt()
+                val minutes = remainingSeconds / 60
+                val seconds = remainingSeconds % 60
+                overlayManager.showOrUpdateTimerPill(packageName, minutes, seconds)
+                return
+            }
         }
         
+        // CHECK 5: Guard Trigger (STARTING SESSION)
         if (GUARDED_CATEGORIES.contains(appState.category)) {
             if (!overlayManager.isOverlayVisible()) {
+                Log.i(TAG, "🛡️ Guard Triggered for $packageName")
                 overlayManager.showConfirmationPopup(packageName)
             }
         }
@@ -183,12 +199,23 @@ class ForcegardAccessibilityService : AccessibilityService(),
     }
 
     override fun onTimerExpired(packageName: String) {
+        Log.d(TAG, "⏰ Timer expired: $packageName")
+
         val timerData = timerManager.getActiveTimer(packageName)
-        val usageMs = timerData?.totalDurationMs ?: (5 * 60000L)
-        val cooldownMs = (usageMs * 2).coerceIn(5 * 60000L, 60 * 60000L)
+        val selectedTimeMs = timerData?.totalDurationMs ?: (5 * 60000L)
+
+        // NEW RULE: Lock Time = Selected Time + 1 minute
+        val cooldownMs = selectedTimeMs + (1 * 60000L)
+
+        Log.i(TAG, "🎯 APPLYING NEW COOLDOWN RULE for $packageName: Selected ${selectedTimeMs/60000}m -> Lock ${cooldownMs/60000}m")
+
+        overlayManager.removeTimerPill(packageName)
         cooldownManager.startCooldown(packageName, CooldownReason.TIMER_EXPIRED, cooldownMs)
         overlayManager.showTimeFinishedPopup(packageName)
-        handler.postDelayed({ performGlobalAction(GLOBAL_ACTION_HOME) }, 500)
+
+        handler.postDelayed({
+            performGlobalAction(GLOBAL_ACTION_HOME)
+        }, 500)
     }
 
     override fun onTimerCancelled(packageName: String) {
