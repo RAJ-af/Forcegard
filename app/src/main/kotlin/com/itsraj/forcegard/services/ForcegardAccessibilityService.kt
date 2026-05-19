@@ -92,7 +92,11 @@ class ForcegardAccessibilityService : AccessibilityService(),
 
     override fun onInterrupt() {}
 
-    override fun onInterrupt() {}
+    override fun onDestroy() {
+        super.onDestroy()
+        timerManager.stopAll()
+        overlayManager.cleanupAll()
+    }
 
     override fun onDestroy() {
         super.onDestroy()
