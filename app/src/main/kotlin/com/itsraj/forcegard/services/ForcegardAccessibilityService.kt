@@ -76,18 +76,21 @@ class ForcegardAccessibilityService : AccessibilityService(),
         try {
             Log.v(TAG, "Received accessibility event: ${AccessibilityEvent.eventTypeToString(event.eventType)}")
 
-            if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
-                event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
-                val packageName = event.packageName?.toString()
-                if (packageName != null) {
-                    Log.d(TAG, "Processing app event: $packageName")
-                    onForegroundAppChanged(packageName, "AccessibilityEvent")
-                }
+            // Call the foreground tracker to process the event
+            foregroundTracker.onAccessibilityEvent(event)
+
+            // Also process the event in the service directly
+            val packageName = event.packageName?.toString()
+            if (packageName != null) {
+                Log.d(TAG, "Processing app event: $packageName")
+                onForegroundAppChanged(packageName, "AccessibilityEvent")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error processing accessibility event", e)
         }
     }
+
+    override fun onInterrupt() {}
 
     override fun onInterrupt() {}
 
