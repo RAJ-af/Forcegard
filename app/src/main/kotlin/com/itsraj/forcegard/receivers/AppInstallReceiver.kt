@@ -4,10 +4,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.itsraj.forcegard.utils.AppPackages
 
 class AppInstallReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context?, intent: Intent?) {
+        context ?: return
         intent ?: return
         
         when (intent.action) {
@@ -15,28 +17,16 @@ class AppInstallReceiver : BroadcastReceiver() {
                 val packageName = intent.data?.schemeSpecificPart
                 Log.d("AppInstallReceiver", "📦 New app installed: $packageName")
                 
-                // Trigger re-scan or categorization
-                packageName?.let {
-                    categorizeNewApp(context, it)
-                }
+                // Re-scan packages to update monitored list
+                AppPackages(context).scanAndSavePackages()
             }
             Intent.ACTION_PACKAGE_REMOVED -> {
                 val packageName = intent.data?.schemeSpecificPart
                 Log.d("AppInstallReceiver", "🗑️ App uninstalled: $packageName")
+
+                // Re-scan packages to update monitored list
+                AppPackages(context).scanAndSavePackages()
             }
         }
-    }
-
-    private fun categorizeNewApp(context: Context?, packageName: String) {
-        context ?: return
-        
-        val category = when {
-            packageName.contains("whatsapp") || packageName.contains("instagram") -> "Social"
-            packageName.contains("chrome") -> "Browser"
-            packageName.contains("youtube") || packageName.contains("netflix") -> "Entertainment"
-            else -> "Other"
-        }
-        
-        Log.d("AppInstallReceiver", "🏷️ $packageName categorized as: $category")
     }
 }

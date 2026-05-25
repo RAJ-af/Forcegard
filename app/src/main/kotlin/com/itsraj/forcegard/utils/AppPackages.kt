@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.util.Log
+import com.itsraj.forcegard.limits.AllowedAppsManager
 
 class AppPackages(private val context: Context) {
 
@@ -18,85 +19,39 @@ class AppPackages(private val context: Context) {
     }
 
     /**
-     * NEW: Monitor ALL user apps with launcher icons
-     * No hardcoded list!
+     * Check if an app should be monitored based on its package name and type
      */
     fun shouldMonitor(packageName: String): Boolean {
-        // Skip own app
-        if (packageName == context.packageName) {
+        // 1. Skip core system apps, launchers, and Forcegard itself
+        if (AllowedAppsManager.isAllowedWhenLimited(packageName) ||
+            AllowedAppsManager.isLauncherApp(context, packageName)) {
             return false
         }
         
-        // Skip core system apps
-        if (isCoreSystemApp(packageName)) {
-            return false
-        }
-
-        // Skip system apps that are NOT updated (except if we want to explicitly allow some)
-        if (isSystemApp(packageName)) {
+        // 2. Check if it's a pure system app (not updated)
+        if (isPureSystemApp(packageName)) {
             return false
         }
         
-        // Skip launcher apps
-        if (isLauncherApp(packageName)) {
-            return false
-        }
-        
-        // Check if app has launcher icon (user-visible apps only)
-        // Some updated system apps like Chrome HAVE launcher icons
+        // 3. Only monitor apps with launcher icons (user-facing apps)
         if (!hasLauncherIcon(packageName)) {
             return false
         }
         
-        // ✅ Monitor ALL remaining user apps
+        // ✅ Monitor all other user apps
         return true
     }
 
-    private fun isCoreSystemApp(packageName: String): Boolean {
-        val corePackages = listOf(
-            "com.android.systemui",
-            "com.android.settings",
-            "com.android.phone",
-            "com.android.server.telecom",
-            "com.android.dialer",
-            "com.google.android.dialer",
-            "com.android.packageinstaller",
-            "com.google.android.packageinstaller",
-            "com.android.permissioncontroller",
-            "com.google.android.permissioncontroller",
-            "com.android.vending",
-            "com.google.android.gsf",
-            "com.google.android.gms"
-        )
-
-        if (corePackages.any { packageName.contains(it) }) return true
-
-        return false
-    }
-
-    private fun isSystemApp(packageName: String): Boolean {
+    private fun isPureSystemApp(packageName: String): Boolean {
         return try {
             val appInfo = context.packageManager.getApplicationInfo(packageName, 0)
             val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
             val isUpdated = (appInfo.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
             
-            // Pure system apps (not updated system apps like Chrome)
             isSystem && !isUpdated
-            
         } catch (e: Exception) {
             false
         }
-    }
-
-    private fun isLauncherApp(packageName: String): Boolean {
-        val intent = Intent(Intent.ACTION_MAIN).apply {
-            addCategory(Intent.CATEGORY_HOME)
-        }
-        val launchers = context.packageManager.queryIntentActivities(
-            intent,
-            PackageManager.MATCH_DEFAULT_ONLY
-        )
-        return launchers.any { it.activityInfo.packageName == packageName }
     }
 
     private fun hasLauncherIcon(packageName: String): Boolean {
@@ -110,7 +65,7 @@ class AppPackages(private val context: Context) {
             val allApps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
             var count = 0
             
-            Log.d(TAG, "🔍 Scanning ALL user apps...")
+            Log.d(TAG, "🔍 Scanning apps for monitoring...")
             
             allApps.forEach { appInfo ->
                 if (shouldMonitor(appInfo.packageName)) {
@@ -120,7 +75,7 @@ class AppPackages(private val context: Context) {
                     } catch (e: Exception) {
                         appInfo.packageName
                     }
-                    Log.d(TAG, "✅ Will monitor: $name (${appInfo.packageName})")
+                    Log.d(TAG, "✅ Monitoring: $name (${appInfo.packageName})")
                 }
             }
             
@@ -129,7 +84,7 @@ class AppPackages(private val context: Context) {
             return count
             
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error: ${e.message}")
+            Log.e(TAG, "❌ Error scanning packages: ${e.message}")
             return 0
         }
     }
